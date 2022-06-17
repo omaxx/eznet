@@ -1,0 +1,14 @@
+click
+dynaconf
+colorlog
+tqdm
+
+cattrs
+lxml
+python-dateutil
+
+paramiko
+scp
+
+PyYAML
+setuptools
