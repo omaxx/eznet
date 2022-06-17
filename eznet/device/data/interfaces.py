@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass
@@ -8,4 +9,4 @@ class Member:
 
 @dataclass
 class Interface:
-    members: dict[str, Member] = None
+    members: Dict[str, Member] = None

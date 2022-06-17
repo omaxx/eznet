@@ -1,18 +1,21 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Dict
+
 import cattrs
 
 from eznet.utils import list_to_dict
 
+from .bgp import BGP
 from .chassis import Chassis
 from .interfaces import Interface
-from .bgp import BGP
 
 
 @dataclass
 class Data:
     chassis: Chassis = None
-    interfaces: dict[str, Interface] = None
+    interfaces: Dict[str, Interface] = None
     bgp: BGP = None
 
     @classmethod

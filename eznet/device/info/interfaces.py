@@ -1,11 +1,10 @@
-from typing import Union
-
-from dataclasses import dataclass
 import statistics
+from dataclasses import dataclass
+from typing import Dict, List, Union
 
-from ..drivers import SSH
 from ..data import Data
-from .get import get_xml, text, number
+from ..drivers import SSH
+from .get import get_xml, number, text
 
 
 @dataclass
@@ -100,7 +99,7 @@ class AEInterface:
     oper: str
     admin: str
     traffic_statistics: TrafficStatistics
-    members: dict[str, Interface] = None
+    members: Dict[str, Interface] = None
 
     @classmethod
     def from_xml(cls, interface_information, interface_name, interface_data, lldp_neighbors=None, chassis_hw=None):
@@ -130,7 +129,7 @@ class AEInterface:
         }
 
 
-def get_interface_info(ssh: SSH, data: Data) -> dict[str, Interface]:
+def get_interface_info(ssh: SSH, data: Data) -> Dict[str, Interface]:
     interface_information = get_xml(ssh, "show interfaces", "//interface-information")
     lldp_neighbors = get_xml(ssh, "show lldp neighbors", "//lldp-neighbors-information")
     chassis_hw = get_xml(ssh, "show chassis hardware", "//chassis-inventory")
@@ -144,11 +143,11 @@ def get_interface_info(ssh: SSH, data: Data) -> dict[str, Interface]:
     } if data.interfaces is not None else None
 
 
-def lb(rates: list[Union[int, float]]) -> float:
+def lb(rates: List[Union[int, float]]) -> float:
     return statistics.pstdev(rates)/statistics.mean(rates)
 
 
-def interfaces_lb(interfaces: dict[str, Interface], names: list[str]):
+def interfaces_lb(interfaces: Dict[str, Interface], names: List[str]):
     try:
         return {
             "output_bps": lb([

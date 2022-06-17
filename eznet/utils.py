@@ -1,5 +1,5 @@
+from collections.abc import MutableMapping, Sequence
 from typing import Union
-from collections.abc import Sequence, MutableMapping
 
 
 def string_to_dict(item, key="name") -> MutableMapping:

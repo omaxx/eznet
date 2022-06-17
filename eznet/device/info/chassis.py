@@ -1,8 +1,9 @@
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from typing import Dict
 
-from ..drivers import SSH
 from ..data import Data
-from .get import get_xml, text, number
+from ..drivers import SSH
+from .get import get_xml, number, text
 
 
 @dataclass
@@ -50,7 +51,7 @@ class XCVR(Module):
 
 @dataclass
 class PIC(Module):
-    xcvr: dict[int, XCVR]
+    xcvr: Dict[int, XCVR]
 
     @classmethod
     def from_xml(cls, chassis_hw, module_name, sub_module_name):
@@ -78,8 +79,8 @@ def get_firmware(chassis_fw, fpc):
 
 @dataclass
 class FPC(Module):
-    pic: dict[int, PIC]
-    firmware: dict[str, str]
+    pic: Dict[int, PIC]
+    firmware: Dict[str, str]
 
     @classmethod
     def from_xml(cls, chassis_hw, module_name, chassis_fw=None):
@@ -100,8 +101,8 @@ class FPC(Module):
 class Chassis:
     sn: str
     description: str
-    re: dict[int, RE]
-    fpc: dict[int, FPC]
+    re: Dict[int, RE]
+    fpc: Dict[int, FPC]
 
     @classmethod
     def from_xml(cls, chassis_hw, chassis_fw=None):

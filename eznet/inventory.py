@@ -1,17 +1,20 @@
 from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+from typing import Dict
 
 import yaml
 
 from eznet.utils import list_to_dict
+
 from .device import Device
 
 
 @dataclass
 class Inventory:
-    devices: dict[str, Device]
+    devices: Dict[str, Device]
 
     @classmethod
     def load(cls, file: str, devices_data_dir: str = None) -> Inventory:
