@@ -1,12 +1,8 @@
-from typing import Protocol
-
 import re
+
 from lxml import etree
 
-
-class SSH(Protocol):
-    def run_cmd(self, cmd: str) -> str:
-        ...
+from ..drivers import SSH
 
 
 class GetException(Exception):

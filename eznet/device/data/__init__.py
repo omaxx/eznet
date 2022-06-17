@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 import cattrs
 
 from eznet.utils import list_to_dict
 
+from .bgp import BGP
 from .chassis import Chassis
 from .interfaces import Interface
-from .bgp import BGP
 
 
 @dataclass

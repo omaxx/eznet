@@ -1,12 +1,11 @@
-from typing import Union
 import logging
-import threading
 import socket
+import threading
+from typing import List, Tuple, Union
 
 import paramiko
 import scp
 from tqdm import tqdm
-
 
 SSH_AUTO_ADD = True
 
@@ -111,7 +110,7 @@ class SSH:
                  cmd: str,
                  timeout: int = SSH_CMD_TIMEOUT,
                  auto_connect: bool = True,
-                 ) -> tuple[str, str]:
+                 ) -> Tuple[str, str]:
         if auto_connect:
             self.connect()
         try:
@@ -143,7 +142,7 @@ class SSH:
                 remote: str,
                 local: str,
                 progress: bool = True,
-                ) -> list[str]:
+                ) -> List[str]:
         self.connect()
         self.logger.info(f"{self}: download {remote} to {local}")
         pb: Union[FileCopy, FileCopyPB]

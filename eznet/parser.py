@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, List, Union
 
 
 class XMLParseError(Exception):
@@ -7,8 +7,8 @@ class XMLParseError(Exception):
 
 class XMLParser:
     def __init__(self,
-                 mappings: dict[str] = None,
-                 sequences: list[str] = None,
+                 mappings: Dict[str, dict] = None,
+                 sequences: List[str] = None,
                  keep_mapping_key: bool = False,
                  default_index_tag: Union[bool, str] = "name",
                  dash_to_underscore: bool = True,

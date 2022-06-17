@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Dict
 
 
 @dataclass
@@ -8,14 +9,14 @@ class XCVR:
 
 @dataclass
 class PIC:
-    xcvr: dict[int, XCVR] = field(default_factory=dict)
+    xcvr: Dict[int, XCVR] = field(default_factory=dict)
 
 
 @dataclass
 class FPC:
-    pic: dict[int, PIC] = field(default_factory=dict)
+    pic: Dict[int, PIC] = field(default_factory=dict)
 
 
 @dataclass
 class Chassis:
-    fpc: dict[int, FPC] = field(default_factory=dict)
+    fpc: Dict[int, FPC] = field(default_factory=dict)

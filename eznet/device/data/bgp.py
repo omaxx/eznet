@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Dict
 
 
 @dataclass
@@ -8,9 +9,9 @@ class Peer:
 
 @dataclass
 class Group:
-    peers: dict[str, Peer] = field(default_factory=dict)
+    peers: Dict[str, Peer] = field(default_factory=dict)
 
 
 @dataclass
 class BGP:
-    groups: dict[str, Group] = field(default_factory=dict)
+    groups: Dict[str, Group] = field(default_factory=dict)

@@ -1,15 +1,14 @@
-from typing import Union
 from dataclasses import dataclass
+from typing import Dict, Union
 
-from ..drivers import SSH
 from ..data import Data
-
-from .interfaces import Interface, AEInterface, get_interface_info
+from ..drivers import SSH
+from .interfaces import AEInterface, Interface, get_interface_info
 
 
 @dataclass
 class Info:
-    interfaces: dict[str, Union[Interface, AEInterface]]
+    interfaces: Dict[str, Union[Interface, AEInterface]]
 
     @classmethod
     def load(cls, ssh: SSH, data: Data):
