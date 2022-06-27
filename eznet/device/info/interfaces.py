@@ -125,12 +125,27 @@ class AEInterface:
     @property
     def lb(self):
         return {
-            "output_bps": lb([
+            "bps": lb([
                 member.traffic_statistics.output_bps
                 for member in self.members.values()
                 if member is not None
             ]),
-            "output_pps": lb([
+            "pps": lb([
+                member.traffic_statistics.output_pps
+                for member in self.members.values()
+                if member is not None
+            ]),
+        }
+
+    @property
+    def lb_list(self):
+        return {
+            "bps": lb_list([
+                member.traffic_statistics.output_bps
+                for member in self.members.values()
+                if member is not None
+            ]),
+            "pps": lb_list([
                 member.traffic_statistics.output_pps
                 for member in self.members.values()
                 if member is not None
@@ -152,8 +167,19 @@ def get_interface_info(ssh: SSH, data: Data) -> Dict[str, Interface]:
     } if data.interfaces is not None else None
 
 
-def lb(rates: List[Union[int, float]]) -> float:
+def lb(rates: List[Union[int, float]]) -> Union[float, None]:
+    if len(rates) == 0:
+        return None
     try:
         return statistics.pstdev(rates)/statistics.mean(rates)
     except ZeroDivisionError:
         return None
+
+
+def lb_list(rates: List[Union[int, float]]) -> List:
+    try:
+        return [
+            rate / statistics.mean(rates) for rate in rates
+        ]
+    except ZeroDivisionError:
+        return [None] * len(rates)
