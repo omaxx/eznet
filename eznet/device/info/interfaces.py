@@ -44,7 +44,8 @@ class XCVR:
                 description = text(xml, xpath+"/description")
                 return cls(
                     speed=description.split("-")[1],
-                    type=description.split("-")[2],
+                    # type=description.split("-")[2],
+                    type=description,
                 )
         return None
 
@@ -124,8 +125,16 @@ class AEInterface:
     @property
     def lb(self):
         return {
-            "output_bps": lb([member.traffic_statistics.output_bps for member in self.members.values()]),
-            "output_pps": lb([member.traffic_statistics.output_pps for member in self.members.values()]),
+            "output_bps": lb([
+                member.traffic_statistics.output_bps
+                for member in self.members.values()
+                if member is not None
+            ]),
+            "output_pps": lb([
+                member.traffic_statistics.output_pps
+                for member in self.members.values()
+                if member is not None
+            ]),
         }
 
 
@@ -144,20 +153,7 @@ def get_interface_info(ssh: SSH, data: Data) -> Dict[str, Interface]:
 
 
 def lb(rates: List[Union[int, float]]) -> float:
-    return statistics.pstdev(rates)/statistics.mean(rates)
-
-
-def interfaces_lb(interfaces: Dict[str, Interface], names: List[str]):
     try:
-        return {
-            "output_bps": lb([
-                interfaces[interface_name].traffic_statistics.output_bps
-                for interface_name in names
-            ]),
-            "output_pps": lb([
-                interfaces[interface_name].traffic_statistics.output_pps
-                for interface_name in names
-            ]),
-        }
-    except KeyError:
+        return statistics.pstdev(rates)/statistics.mean(rates)
+    except ZeroDivisionError:
         return None
