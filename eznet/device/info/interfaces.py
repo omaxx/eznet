@@ -9,8 +9,8 @@ from .get import get_xml, number, text
 
 @dataclass
 class Peer:
-    name: str
-    port: str
+    device: str
+    interface: str
 
     @classmethod
     def from_xml(cls, lldp_neighbors, interface_name):
@@ -19,15 +19,14 @@ class Peer:
             return None
         else:
             return cls(
-                name=text(lldp_neighbors, f"{xpath}/lldp-remote-system-name"),
-                port=text(lldp_neighbors, f"{xpath}/lldp-remote-port-id")
+                device=text(lldp_neighbors, f"{xpath}/lldp-remote-system-name"),
+                interface=text(lldp_neighbors, f"{xpath}/lldp-remote-port-id")
             )
 
 
 @dataclass
 class XCVR:
-    speed: str
-    type: str
+    description: str
 
     @classmethod
     def from_xml(cls, xml, interface_name):
@@ -41,11 +40,10 @@ class XCVR:
             f"/chassis-sub-sub-sub-module[name='Xcvr {port}']",
         ]:
             if len(xml.xpath(xpath)) == 1:
-                description = text(xml, xpath+"/description")
                 return cls(
-                    speed=description.split("-")[1],
+                    description=text(xml, xpath+"/description"),
+                    # speed=description.split("-")[1],
                     # type=description.split("-")[2],
-                    type=description,
                 )
         return None
 
@@ -78,93 +76,49 @@ class Interface:
     xcvr: XCVR = None
 
     @classmethod
-    def from_xml(cls, interface_information, interface_name, interface_data, lldp_neighbors=None, chassis_hw=None):
+    def from_xml(cls,
+                 interface_name,
+                 interface_information,
+                 lldp_neighbors=None,
+                 chassis_hw=None
+                 ):
         xpath = f"//physical-interface[name='{interface_name}']"
         if len(interface_information.xpath(xpath)) == 0:
             return None
         else:
-            return cls(
-                oper=text(interface_information, f"{xpath}/oper-status"),
-                admin=text(interface_information, f"{xpath}/admin-status"),
-                traffic_statistics=TrafficStatistics.from_xml(interface_information, interface_name),
-                ae=text(interface_information,
-                        f"{xpath}/logical-interface/address-family[address-family-name='aenet']"
-                        f"/ae-bundle-name").split(".")[0],
-                peer=Peer.from_xml(lldp_neighbors, interface_name) if lldp_neighbors is not None else None,
-                xcvr=XCVR.from_xml(chassis_hw, interface_name) if chassis_hw is not None else None,
-            )
+            if interface_name[:2] in ["ge", "xe", "et"]:
+                return cls(
+                    oper=text(interface_information, f"{xpath}/oper-status"),
+                    admin=text(interface_information, f"{xpath}/admin-status"),
+                    traffic_statistics=TrafficStatistics.from_xml(interface_information, interface_name),
+                    ae=text(interface_information,
+                            f"{xpath}/logical-interface/address-family[address-family-name='aenet']"
+                            f"/ae-bundle-name").split(".")[0],
+                    peer=Peer.from_xml(lldp_neighbors, interface_name) if lldp_neighbors is not None else None,
+                    xcvr=XCVR.from_xml(chassis_hw, interface_name) if chassis_hw is not None else None,
+                )
+            else:
+                return cls(
+                    oper=text(interface_information, f"{xpath}/oper-status"),
+                    admin=text(interface_information, f"{xpath}/admin-status"),
+                    traffic_statistics=TrafficStatistics.from_xml(interface_information, interface_name),
+                )
 
 
-@dataclass
-class AEInterface:
-    oper: str
-    admin: str
-    traffic_statistics: TrafficStatistics
-    members: Dict[str, Interface] = None
-
-    @classmethod
-    def from_xml(cls, interface_information, interface_name, interface_data, lldp_neighbors=None, chassis_hw=None):
-        xpath = f"//physical-interface[name='{interface_name}']"
-        if len(interface_information.xpath(xpath)) == 0:
-            return None
-        else:
-            return cls(
-                oper=text(interface_information, f"{xpath}/oper-status"),
-                admin=text(interface_information, f"{xpath}/admin-status"),
-                traffic_statistics=TrafficStatistics.from_xml(interface_information, interface_name),
-                members={
-                    member_name: Interface.from_xml(
-                        interface_information,
-                        member_name, member_data,
-                        lldp_neighbors, chassis_hw
-                    )
-                    for member_name, member_data in interface_data.members.items()
-                } if interface_data.members is not None else None,
-            )
-
-    @property
-    def lb(self):
-        return {
-            "bps": lb([
-                member.traffic_statistics.output_bps
-                for member in self.members.values()
-                if member is not None
-            ]),
-            "pps": lb([
-                member.traffic_statistics.output_pps
-                for member in self.members.values()
-                if member is not None
-            ]),
-        }
-
-    @property
-    def lb_list(self):
-        return {
-            "bps": lb_list([
-                member.traffic_statistics.output_bps
-                for member in self.members.values()
-                if member is not None
-            ]),
-            "pps": lb_list([
-                member.traffic_statistics.output_pps
-                for member in self.members.values()
-                if member is not None
-            ]),
-        }
-
-
-def get_interface_info(ssh: SSH, data: Data) -> Dict[str, Interface]:
+def get_interfaces_info(ssh: SSH) -> Dict[str, Interface]:
     interface_information = get_xml(ssh, "show interfaces", "//interface-information")
     lldp_neighbors = get_xml(ssh, "show lldp neighbors", "//lldp-neighbors-information")
     chassis_hw = get_xml(ssh, "show chassis hardware", "//chassis-inventory")
     return {
-        interface_name: (Interface, AEInterface)[interface_name[0:2] == "ae"].from_xml(
+        text(e, "name"): Interface.from_xml(
+            text(e, "name"),
             interface_information,
-            interface_name, interface_data,
-            lldp_neighbors, chassis_hw
+            lldp_neighbors,
+            chassis_hw,
         )
-        for interface_name, interface_data in data.interfaces.items()
-    } if data.interfaces is not None else None
+        for e in interface_information.xpath("//physical-interface")
+        if text(e, "name")[:2] in ["ae", "ge", "xe", "et"]
+    }
 
 
 def lb(rates: List[Union[int, float]]) -> Union[float, None]:
@@ -174,12 +128,3 @@ def lb(rates: List[Union[int, float]]) -> Union[float, None]:
         return statistics.pstdev(rates)/statistics.mean(rates)
     except ZeroDivisionError:
         return None
-
-
-def lb_list(rates: List[Union[int, float]]) -> List:
-    try:
-        return [
-            rate / statistics.mean(rates) for rate in rates
-        ]
-    except ZeroDivisionError:
-        return [None] * len(rates)
