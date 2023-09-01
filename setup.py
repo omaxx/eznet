@@ -16,8 +16,8 @@ setup(
     author="maxx orlov",
     author_email="",
     description="",
-    # entry_points={
-    #     "console_scripts": "eznet=eznet.__main__:cli",
-    # },
+    entry_points={
+        "console_scripts": "eznet=eznet.__main__:cli",
+    },
     install_requires=install_requires,
 )

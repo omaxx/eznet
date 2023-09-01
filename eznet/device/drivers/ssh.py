@@ -319,75 +319,6 @@ class SSH:
                 self.requests.remove(request)
                 return upload_files
 
-class Lock:
-    loop: ClassVar[Optional[asyncio.AbstractEventLoop]] = None
-    instances: ClassVar[Dict[int, Lock]] = {}
-
-    def __init__(self) -> None:
-        self.connect = asyncio.Lock()
-
-    @classmethod
-    def get(cls, ssh: SSH) -> Lock:
-        loop = asyncio.get_running_loop()
-        if Lock.loop != loop:
-            Lock.loop = loop
-            Lock.instances = {}
-        if id(ssh) not in Lock.instances:
-            Lock.instances[id(ssh)] = Lock()
-        return Lock.instances[id(ssh)]
-
-
-class Semaphore:
-    loop: ClassVar[Optional[asyncio.AbstractEventLoop]] = None
-    instances: ClassVar[Optional[Semaphore]] = None
-
-    def __init__(self) -> None:
-        self.connect = asyncio.Semaphore(MAX_SIMULTANEOUS_CONNECTIONS)
-        self.execute = asyncio.Semaphore(MAX_SIMULTANEOUS_EXECUTIONS)
-        self.download = asyncio.Semaphore(MAX_SIMULTANEOUS_DOWNLOADS)
-        self.upload = asyncio.Semaphore(MAX_SIMULTANEOUS_UPLOADS)
-
-    @classmethod
-    def get(cls) -> Semaphore:
-        loop = asyncio.get_running_loop()
-        if Semaphore.loop != loop or Semaphore.instances is None:
-            Semaphore.loop = loop
-            Semaphore.instances = Semaphore()
-        return Semaphore.instances
-
-
-class Request:
-    pass
-
-
-class CmdRequest(Request):
-    def __init__(self, cmd: str):
-        self.cmd = cmd
-        self.stdout = ""
-        self.stderr = ""
-
-    def __repr__(self) -> str:
-        return f"{self.cmd}\t{len(self.stdout):,}\t/\t{len(self.stderr):,}"
-
-
-class FileRequest(Request):
-    def __init__(self, file_name: str, received_bytes: int = 0, total_bytes: int = 0):
-        self.file_name = file_name
-        self.received_bytes = received_bytes
-        self.total_bytes = total_bytes
-        self.speed: float = 0
-
-    def __repr__(self) -> str:
-        received_part = (
-            self.received_bytes / self.total_bytes if self.total_bytes > 0 else 1
-        )
-        return (
-            f"{self.file_name}\t"
-            f"{self.received_bytes:,}\tof\t{self.total_bytes:,}\t"
-            f"[ {received_part:.0%} ]\t"
-            f"at {self.speed:,.0f} Bps"
-        )
-
 
 def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
     class SSHClient(asyncssh.SSHClient):
@@ -424,3 +355,73 @@ def create_session_factory(request: CmdRequest) -> Type[asyncssh.SSHClientSessio
                 request.stdout += data
 
     return SSHClientSession
+
+
+class Request:
+    pass
+
+
+class CmdRequest(Request):
+    def __init__(self, cmd: str):
+        self.cmd = cmd
+        self.stdout = ""
+        self.stderr = ""
+
+    def __repr__(self) -> str:
+        return f"{self.cmd}\t{len(self.stdout):,}\t/\t{len(self.stderr):,}"
+
+
+class FileRequest(Request):
+    def __init__(self, file_name: str, received_bytes: int = 0, total_bytes: int = 0):
+        self.file_name = file_name
+        self.received_bytes = received_bytes
+        self.total_bytes = total_bytes
+        self.speed: float = 0
+
+    def __repr__(self) -> str:
+        received_part = (
+            self.received_bytes / self.total_bytes if self.total_bytes > 0 else 1
+        )
+        return (
+            f"{self.file_name}\t"
+            f"{self.received_bytes:,}\tof\t{self.total_bytes:,}\t"
+            f"[ {received_part:.0%} ]\t"
+            f"at {self.speed:,.0f} Bps"
+        )
+
+
+class Lock:
+    loop: ClassVar[Optional[asyncio.AbstractEventLoop]] = None
+    instances: ClassVar[Dict[int, Lock]] = {}
+
+    def __init__(self) -> None:
+        self.connect = asyncio.Lock()
+
+    @classmethod
+    def get(cls, ssh: SSH) -> Lock:
+        loop = asyncio.get_running_loop()
+        if Lock.loop != loop:
+            Lock.loop = loop
+            Lock.instances = {}
+        if id(ssh) not in Lock.instances:
+            Lock.instances[id(ssh)] = Lock()
+        return Lock.instances[id(ssh)]
+
+
+class Semaphore:
+    loop: ClassVar[Optional[asyncio.AbstractEventLoop]] = None
+    instances: ClassVar[Optional[Semaphore]] = None
+
+    def __init__(self) -> None:
+        self.connect = asyncio.Semaphore(MAX_SIMULTANEOUS_CONNECTIONS)
+        self.execute = asyncio.Semaphore(MAX_SIMULTANEOUS_EXECUTIONS)
+        self.download = asyncio.Semaphore(MAX_SIMULTANEOUS_DOWNLOADS)
+        self.upload = asyncio.Semaphore(MAX_SIMULTANEOUS_UPLOADS)
+
+    @classmethod
+    def get(cls) -> Semaphore:
+        loop = asyncio.get_running_loop()
+        if Semaphore.loop != loop or Semaphore.instances is None:
+            Semaphore.loop = loop
+            Semaphore.instances = Semaphore()
+        return Semaphore.instances

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Union, Any
 
+import cattrs
+
 from . import info
+from . import vars
 from .drivers import JUNOS, SSH
+
+converter = cattrs.Converter()
 
 
 class Device:
@@ -15,6 +20,7 @@ class Device:
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
         root_pass: Optional[str] = None,
+        **kwargs,
     ):
         self.name = name
         self.site = site
@@ -24,6 +30,9 @@ class Device:
         self.user_name = user_name
         self.user_pass = user_pass
         self.root_pass = root_pass
+        self.kwargs = kwargs
+
+        self.vars: Optional[vars.Device] = None
 
         if isinstance(ip, str):
             ssh_ip = ip
@@ -54,3 +63,6 @@ class Device:
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, Device) and self.id == other.id
+
+    def import_vars(self, **data):
+        self.vars = converter.structure(data, vars.Device)
