@@ -1,0 +1,6 @@
+devices:
+  - name: vmx-1
+    ip: 172.31.0.96
+    user_name: user
+    user_pass: User#123
+    
