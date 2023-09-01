@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Optional, Union, Any
 
 import cattrs
@@ -31,6 +32,8 @@ class Device:
         self.user_pass = user_pass
         self.root_pass = root_pass
         self.kwargs = kwargs
+
+        self.logger = logging.getLogger(f"eznet.device.{self.id}")
 
         self.vars: Optional[vars.Device] = None
 

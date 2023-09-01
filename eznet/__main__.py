@@ -102,9 +102,14 @@ def main(
     default="inventory/devices", show_default=True,
 )
 @click.option(
+    "--work", "-w", "work_path",
+    help="Working path", type=click.Path(),
+    default="working", show_default=True,
+)
+@click.option(
     "--jobs", "-j", "jobs_path",
-    help="Jobs path", type=click.Path(),
-    default="working/jobs", show_default=True,
+    help="Jobs path (absolute or related to working path)", type=click.Path(),
+    default="jobs", show_default=True,
 )
 @click.option(
     "--device-id", "-d", "device_id",

@@ -108,7 +108,7 @@ async def rsi(
     if not job_path.exists():
         job_path.mkdir(parents=True)
 
-    with open(job_path / f"{device.id}.txt", "w") as io:
+    with open(job_path / f"{device.id}.cmd", "w") as io:
         for cmd in cli_commands(device):
             print(f"{' ' + cmd + ' ':=^120}", file=io)
             output = await device.junos.run_cmd(cmd)
@@ -126,7 +126,7 @@ async def rsi(
             print(file=io)
 
     for fpc_number in device.info.chassis.fpc["default"].keys():
-        with open(job_path / f"{device.id}.fpc{fpc_number}.txt", "w") as io:
+        with open(job_path / f"{device.id}.fpc{fpc_number}", "w") as io:
             for cmd in pfe_commands(device):
                 print(f"{' ' + cmd + ' ':=^120}", file=io)
                 output = await device.junos.run_pfe_cmd(cmd, fpc=fpc_number)
@@ -135,22 +135,53 @@ async def rsi(
                 print(f"{' ' + cmd + ' ':^^120}", file=io)
                 print(file=io)
 
-        for file in log_files(device):
-            remote_path = Path(file)
-            if remote_path.is_absolute():
-                local_path = job_path / f"{device.id}" / remote_path.parent.relative_to("/")
-            else:
-                local_path = job_path / f"{device.id}" / remote_path.parent
-            if not local_path.exists():
-                local_path.mkdir(parents=True)
-            await device.ssh.download(file, local_path)
+    device_job_path = job_path / f"{device.id}"
+    if not device_job_path.exists():
+        device_job_path.mkdir(parents=True)
+    await download(device, "/var/log", device_job_path)
 
+    # for file in log_files(device):
+    #     remote_path = Path(file)
+    #     if remote_path.is_absolute():
+    #         local_path = job_path / f"{device.id}" / remote_path.parent.relative_to("/")
+    #     else:
+    #         local_path = job_path / f"{device.id}" / remote_path.parent
+    #     if not local_path.exists():
+    #         local_path.mkdir(parents=True)
+    #     await device.ssh.download(file, local_path)
+    #
     # with open(job_path / f"{device.id}.rsi", "w") as io:
-    #     output = await device.junos.run_cmd("request system information")
+    #     output = await device.junos.run_cmd("request support information", timeout=600)
     #     if output is not None:
     #         print(output, file=io)
 
-    device_job_path = job_path / f"{device.id}" if job_path is not None else None
+
+async def download(device: Device, remote_path: Union[Path, str], local_path: Union[Path, str]):
+    if isinstance(remote_path, str):
+        remote_path = Path(remote_path)
+    if remote_path.is_absolute():
+        tmp_file_name = (
+            f"{Path(remote_path).relative_to('/')}"
+            .replace("/", ".")
+            .replace("*", "")
+            + ".tgz"
+        )
+    else:
+        tmp_file_name = (
+            f"{Path(remote_path)}"
+            .replace("/", ".")
+            .replace("*", "")
+            + ".tgz"
+        )
+    await device.junos.run_cmd(
+        f'request routing-engine execute command "tar -czf ./{tmp_file_name} {remote_path}" routing-engine both'
+    )
+    await device.junos.run_cmd(f"file copy re0:./{tmp_file_name} ./re0.{tmp_file_name}")
+    await device.junos.run_cmd(f"file copy re1:./{tmp_file_name} ./re1.{tmp_file_name}")
+    await device.ssh.download(f"re0.{tmp_file_name}", local_path)
+    await device.ssh.download(f"re1.{tmp_file_name}", local_path)
+    await device.junos.run_cmd(f"file delete ./re0.{tmp_file_name}")
+    await device.junos.run_cmd(f"file delete ./re1.{tmp_file_name}")
 
 
 def arch_cli_commands(device: Device) -> Iterable[str]:
