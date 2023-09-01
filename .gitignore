@@ -162,5 +162,7 @@ cython_debug/
 
 /temp/
 /scripts/
+/working/
 /jobs/
 /xml/
+/inventory/

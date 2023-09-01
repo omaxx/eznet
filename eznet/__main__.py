@@ -6,7 +6,7 @@ import asyncio
 import logging
 from datetime import datetime
 import sys
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 from pathlib import Path
 
 import click
@@ -20,22 +20,40 @@ from eznet.rsi import rsi
 JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
 
 
+def set_path(
+    work_path: Union[Path, str],
+    jobs_path: Union[Path, str],
+    job_name: str,
+) -> Tuple[Path, Path, Path, Path]:
+    if isinstance(work_path, str):
+        work_path = Path(work_path)
+    work_path.expanduser()
+
+    if isinstance(jobs_path, str):
+        jobs_path = Path(jobs_path)
+    jobs_path.expanduser()
+    jobs_path = work_path / jobs_path
+
+    job_path = jobs_path / job_name
+    log_file = jobs_path / f"{job_name}.log"
+
+    return work_path, jobs_path, job_path, log_file
+
+
 def main(
     inventory_path: Union[Path, str],
-    jobs_path: Union[Path, str] = "jobs/",
+    work_path: Union[Path, str] = "working",
+    jobs_path: Union[Path, str] = "jobs",
     job_name: Optional[str] = None,
     device_id: Optional[str] = None,
 ) -> None:
     time_start = datetime.now()
-
-    if not isinstance(jobs_path, Path):
-        jobs_path = Path(jobs_path)
-    jobs_path.expanduser()
     job_name = job_name or time_start.strftime(JOB_TS_FORMAT)
-    job_path = jobs_path / job_name
-    config_logger(logging.INFO, job_path / "journal.log")
     print(f"{job_name}: [black on white]job started at {time_start}")
-    print(f"{job_name}: job folder: {job_path.absolute()}")
+
+    work_path, jobs_path, job_path, log_file = set_path(work_path, jobs_path, job_name)
+    config_logger(logging.INFO, log_file)
+    print(f"{job_name}: [black on white]log file: {log_file.absolute()}, job folder: {job_path.absolute()}")
 
     try:
         inventory = Inventory()
@@ -69,12 +87,12 @@ def main(
 
         asyncio.run(gather())
     except KeyboardInterrupt:
-        print(f"{job_name}: [red on white]keyboard interrupted")
+        print(f"{job_name}: [white on red]keyboard interrupted")
         sys.exit(130)
     finally:
         time_stop = datetime.now()
         print(f"{job_name}: [black on white]job finished at {time_stop}")
-        print(f"{job_name}: job folder: {job_path.absolute()}")
+        print(f"{job_name}: [black on white]log file: {log_file.absolute()}, job folder: {job_path.absolute()}")
 
 
 @click.command
@@ -86,22 +104,14 @@ def main(
 @click.option(
     "--jobs", "-j", "jobs_path",
     help="Jobs path", type=click.Path(),
-    default="jobs", show_default=True,
+    default="working/jobs", show_default=True,
 )
 @click.option(
     "--device-id", "-d", "device_id",
     help="Device filter: id",
 )
-def cli(
-    inventory_path: Optional[str],
-    jobs_path: Optional[str],
-    device_id: Optional[str],
-) -> None:
-    main(
-        inventory_path=inventory_path,
-        jobs_path=jobs_path,
-        device_id=device_id,
-    )
+def cli(**kwargs) -> None:
+    main(**kwargs)
 
 
 if __name__ == "__main__":

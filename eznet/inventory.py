@@ -3,8 +3,10 @@ from __future__ import annotations
 import logging
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
+import json
 
 import yaml
+import _jsonnet
 
 from eznet.device import Device
 
@@ -28,15 +30,33 @@ class Inventory:
                     self.load(child)
         elif path.suffix == ".yaml":
             logger.info(f"inventory: load from {path}")
-            with open(path) as io:
+            try:
+                with open(path) as io:
+                    self.imp0rt(
+                        yaml.safe_load(io.read()) or {},
+                        site=path.with_suffix("").name,
+                    )
+            except Exception as exc:
+                logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
+        elif path.suffix == ".json":
+            logger.info(f"inventory: load from {path}")
+            try:
+                with open(path) as io:
+                    self.imp0rt(
+                        json.loads(io.read()),
+                        site=path.with_suffix("").name,
+                    )
+            except Exception as exc:
+                logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
+        elif path.suffix == ".jsonnet":
+            logger.info(f"inventory: load from {path}")
+            try:
                 self.imp0rt(
-                    yaml.safe_load(io.read()) or {},
+                    json.loads(_jsonnet.evaluate_file(f"{path}")),
                     site=path.with_suffix("").name,
                 )
-        elif path.suffix == ".json":
-            logger.error(f"json is not supported yet")
-        elif path.suffix == ".jsonnet":
-            logger.error(f"jsonnet is not supported yet")
+            except Exception as exc:
+                logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
         else:
             logger.error(f"unknown inventory file format {path.suffix[1:]}")
 
@@ -51,3 +71,12 @@ class Inventory:
                 logger.error(f"Load error: Duplicate device with {device.id}")
             else:
                 self.devices.append(device)
+
+    @property
+    def sites(self) -> Dict[Union[str, None], List[Device]]:
+        sites: Dict[Union[str, None], List[Device]] = {}
+        for device in self.devices:
+            if device.site not in sites:
+                sites[device.site] = []
+            sites[device.site].append(device)
+        return sites
