@@ -73,6 +73,12 @@ class PIC:
 @define
 class FPC:
     state: Optional[str]
+    comment: Optional[str]
+    cpu_utilization_total: Optional[int]
+    cpu_utilization_interrupt: Optional[int]
+    memory_dram: Optional[int]
+    memory_heap_utilization: Optional[int]
+    memory_buffer_utilization: Optional[int]
     description: Optional[str]
     pics: Dict[int, PIC]
 
@@ -80,6 +86,12 @@ class FPC:
     def from_xml(fpc: _Element) -> FPC:
         return FPC(
             state=text(fpc, "state"),
+            comment=text(fpc, "comment"),
+            cpu_utilization_total=number(fpc, "cpu-total"),
+            cpu_utilization_interrupt=number(fpc, "cpu-interrupt"),
+            memory_dram=number(fpc, "memory-dram-size"),
+            memory_heap_utilization=number(fpc, "memory-heap-utilization"),
+            memory_buffer_utilization=number(fpc, "memory-buffer-utilization"),
             description=text(fpc, "description"),
             pics={
                 number(pic, "pic-slot"): PIC.from_xml(pic)
