@@ -35,7 +35,8 @@ class State(Enum):
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
-    # RECONNECT_WAITING = auto()
+    WAITING_CONNECT = auto()
+    WAITING_RECONNECT = auto()
 
     def __repr__(self) -> str:
         return self.name
@@ -85,7 +86,7 @@ class SSH:
     ) -> None:
         self.disconnect()
 
-    async def connect(self) -> None:
+    async def connect(self, attempts: int = 1, attempt_timeout: int = 15) -> None:
         if self.ip is None:
             self.logger.warning(f"{self}: ip is not set")
             raise ConnectError()
@@ -94,44 +95,54 @@ class SSH:
             if self.connection is not None:
                 return
 
+            self.state = State.WAITING_CONNECT
             await Semaphore.get().connect.acquire()
-            self.state = State.CONNECTING
-            self.logger.info(
-                f"{self}: connecting to {self.ip} as {self.user_name}"
-            )
-            try:
-                self.connection = await asyncssh.connect(
-                    host=self.ip,
-                    username=self.user_name,
-                    password=self.user_pass,
-                    client_factory=create_client_factory(self),
-                    connect_timeout=DEFAULT_CONNECT_TIMEOUT,
-                    keepalive_interval=DEFAULT_KEEPALIVE,
+            while attempts > 0:
+                self.state = State.CONNECTING
+                self.logger.info(
+                    f"{self}: connecting to {self.ip} as {self.user_name}"
                 )
-            except (
-                socket.gaierror,
-                TimeoutError,
-                ConnectionRefusedError,
-                ConnectionResetError,
-                OSError,  # Network unreachable
-                asyncssh.Error,
-            ) as err:
-                self.state = State.DISCONNECTED
-                self.error = f"{err.__class__.__name__}"
-                self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
-                Semaphore.get().connect.release()
-                raise ConnectError() from None
-            except Exception as err:
-                self.state = State.DISCONNECTED
-                self.error = f"{err.__class__.__name__}"
-                self.logger.critical(f"{self}: {err.__class__.__name__}: {err}")
-                Semaphore.get().connect.release()
-                raise
-            else:
-                self.state = State.CONNECTED
-                self.error = None
-                self.logger.info(f"{self}: CONNECTED")
-                return
+                try:
+                    self.connection = await asyncssh.connect(
+                        host=self.ip,
+                        username=self.user_name,
+                        password=self.user_pass,
+                        client_factory=create_client_factory(self),
+                        connect_timeout=DEFAULT_CONNECT_TIMEOUT,
+                        keepalive_interval=DEFAULT_KEEPALIVE,
+                    )
+                except (
+                    socket.gaierror,
+                    TimeoutError,
+                    ConnectionRefusedError,
+                    ConnectionResetError,
+                    OSError,  # Network unreachable
+                    asyncssh.Error,
+                ) as err:
+                    self.state = State.DISCONNECTED
+                    self.error = f"{err.__class__.__name__}"
+                    self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
+                    # Semaphore.get().connect.release()
+                    # raise ConnectError() from None
+                except Exception as err:
+                    self.state = State.DISCONNECTED
+                    self.error = f"{err.__class__.__name__}"
+                    self.logger.critical(f"{self}: {err.__class__.__name__}: {err}")
+                    Semaphore.get().connect.release()
+                    raise
+                else:
+                    self.state = State.CONNECTED
+                    self.error = None
+                    self.logger.info(f"{self}: CONNECTED")
+                    return
+
+                attempts -= 1
+                if attempts > 0:
+                    self.state = State.WAITING_RECONNECT
+                    await asyncio.sleep(attempt_timeout)
+
+            Semaphore.get().connect.release()
+            raise ConnectError() from None
 
     def disconnect(self) -> None:
         if self.connection is not None:
