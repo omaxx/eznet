@@ -33,6 +33,10 @@ class Data(Generic[V]):
     def imp0rt(self, data: Any, tag: str = DEFAULT_TAG) -> None:
         self.data[tag] = converter.structure(data, self.cls)
 
+    @property
+    def v(self) -> Optional[V]:
+        return self.data.get(DEFAULT_TAG)
+
     async def __call__(self, tag: str = DEFAULT_TAG, *args: P.args, **kwargs: P.kwargs) -> Optional[V]:
         if tag in self.data:
             return self.data[tag]

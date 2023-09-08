@@ -10,6 +10,8 @@ lxml-stubs
 jsonnet
 cattrs
 
+influxdb-client
+
 click
 rich
 pathlib3x
