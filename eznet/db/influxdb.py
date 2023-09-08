@@ -208,7 +208,8 @@ class Event:
         pass
 
     timestamp: datetime
-    value: Self.Value
+    # FIXME: should be Self.Value, but got "AttributeError: Value"
+    value: Event.Value
 
     def __str__(self) -> str:
         self_as_dict = asdict(self)  # noqa
