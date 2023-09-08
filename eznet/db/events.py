@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import ClassVar, TypedDict, Literal, List
+from typing import ClassVar, TypedDict, List
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -26,7 +26,7 @@ class CoreDump(Event):
 
     device: str
     re: str
-    host: Literal["No", "Yes"]
+    host: str  # should be "No" or "Yes"
 
     @classmethod
     async def fetch(cls, device: Device) -> List[Self]:

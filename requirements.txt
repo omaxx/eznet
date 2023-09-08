@@ -10,7 +10,7 @@ lxml-stubs
 jsonnet
 cattrs
 
-influxdb-client
+influxdb-client[ciso]
 
 click
 rich
