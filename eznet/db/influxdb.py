@@ -26,6 +26,8 @@ def init(
     timeout: int = DEFAULT_TIMEOUT,
 ) -> None:
     global _client
+    if any((url is None, org is None, token is None)):
+        raise TypeError("ERROR: could not init influx db with url: {url}, org: {org}, token: {token}")
     _client = InfluxDBClient(
         url=url,
         token=token,
@@ -208,8 +210,7 @@ class Event:
         pass
 
     timestamp: datetime
-    # FIXME: should be Self.Value, but got "AttributeError: Value"
-    value: Event.Value
+    value: Value
 
     def __str__(self) -> str:
         self_as_dict = asdict(self)  # noqa
