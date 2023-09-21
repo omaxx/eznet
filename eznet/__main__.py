@@ -69,10 +69,10 @@ def main(
 
             async with device.ssh:
                 # TODO: print status
-                await device.info.system.info()
-                await device.info.chassis.re()
-                await device.info.chassis.fpc()
-                await device.info.system.uptime()
+                await device.info.system.info.fetch()
+                await device.info.chassis.re.fetch()
+                await device.info.chassis.fpc.fetch()
+                await device.info.system.uptime.fetch()
 
                 await rsi(device, job_path=job_path)
 
@@ -83,7 +83,7 @@ def main(
         async def gather() -> None:
             await asyncio.gather(*(
                 process(device) for device in inventory.devices if device_filter(device)
-            ), return_exceptions=True)
+            ), return_exceptions=False)
 
         asyncio.run(gather())
     except KeyboardInterrupt:

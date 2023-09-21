@@ -110,10 +110,12 @@ class SSH:
                         client_factory=create_client_factory(self),
                         connect_timeout=DEFAULT_CONNECT_TIMEOUT,
                         keepalive_interval=DEFAULT_KEEPALIVE,
+                        known_hosts=None,
                     )
                 except (
                     socket.gaierror,
                     TimeoutError,
+                    asyncio.exceptions.TimeoutError,
                     ConnectionRefusedError,
                     ConnectionResetError,
                     OSError,  # Network unreachable
@@ -142,7 +144,7 @@ class SSH:
                     await asyncio.sleep(attempt_timeout)
 
             Semaphore.get().connect.release()
-            raise ConnectError() from None
+            # raise ConnectError() from None
 
     def disconnect(self) -> None:
         if self.connection is not None:

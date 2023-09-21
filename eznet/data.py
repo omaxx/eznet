@@ -37,9 +37,7 @@ class Data(Generic[V]):
     def v(self) -> Optional[V]:
         return self.data.get(DEFAULT_TAG)
 
-    async def __call__(self, tag: str = DEFAULT_TAG, *args: P.args, **kwargs: P.kwargs) -> Optional[V]:
-        if tag in self.data:
-            return self.data[tag]
+    async def fetch(self, tag: str = DEFAULT_TAG, *args: P.args, **kwargs: P.kwargs) -> Optional[V]:
         data = await self.func(self.device, *args, **kwargs)
         if data is not None:
             self.data[tag] = data

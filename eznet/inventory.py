@@ -17,7 +17,14 @@ class Inventory:
     def __init__(self) -> None:
         self.devices: List[Device] = []
 
-    def load(self, path: Union[str, Path]) -> None:
+    def device(self, name: str) -> Optional[Device]:
+        for device in self.devices:
+            if device.name == name:
+                return device
+        else:
+            return None
+
+    def load(self, path: Union[str, Path]) -> Inventory:
         if isinstance(path, str):
             path = Path(path)
         path = path.expanduser()
@@ -59,6 +66,8 @@ class Inventory:
                 logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
         else:
             logger.error(f"unknown inventory file format {path.suffix[1:]}")
+
+        return self
 
     def imp0rt(self, data: Dict[str, Any], site: Optional[str] = None) -> None:
         devices: List[Dict[Any, Any]] = data.get("devices", [])
