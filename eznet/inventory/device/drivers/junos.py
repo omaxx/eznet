@@ -1,31 +1,38 @@
 from __future__ import annotations
 
-import json
+from typing import Optional, Dict, Any, Tuple
+import logging
 import re
-from typing import Any, Dict, Optional, Tuple
+import json
 
 from lxml import etree
 from lxml.etree import _Element  # noqa
 
-from .ssh import SSH
-
-# from .common import CommandError
-
-DEFAULT_CMD_TIMEOUT = 90
+from .ssh import SSH, DEFAULT_CMD_TIMEOUT, RequestError
 
 
-class JUNOS:
+class Junos:
     def __init__(
         self,
-        ssh: SSH,
+        ssh: Optional[SSH],
+        device_id: Optional[str] = None,
     ):
         self.ssh = ssh
-        self.logger = ssh.logger
+        self.device_id = device_id
+        if ssh is not None:
+            self.logger = ssh.logger
+        elif device_id is not None:
+            self.logger = logging.getLogger(f"eznet.device.{device_id}")
+        else:
+            raise TypeError()
 
     def __str__(self) -> str:
-        return f"{self.ssh}: junos"
+        if self.ssh is not None:
+            return f"{self.ssh}: junos"
+        else:
+            return f"{self.device_id}: junos"
 
-    def output_has_errors(
+    def error_in_output(
         self,
         cmd: str,
         output: str,
@@ -47,8 +54,13 @@ class JUNOS:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[str]:
-        output, _ = await self.ssh.execute(cmd, timeout=timeout)
-        if output is None or self.output_has_errors(cmd, output):
+        if self.ssh is None:
+            return None
+        try:
+            output, _ = await self.ssh.execute(cmd, timeout=timeout)
+            if self.error_in_output(cmd, output):
+                return None
+        except RequestError:
             return None
 
         return output
@@ -58,17 +70,20 @@ class JUNOS:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[str]:
-        output, error = await self.ssh.execute(
-            f'start shell command "{cmd}"', timeout=timeout
-        )
-        # First check for junos error in stdout
-        if output is None or self.output_has_errors(cmd, output):
+        if self.ssh is None:
             return None
-
-        # Second check for error in stderr
-        if error is not None and error != "":
-            self.logger.error(f"{self}: run_shell_cmd: ERROR: {error.strip()}")
-            return output
+        try:
+            output, error = await self.ssh.execute(
+                f'start shell command "{cmd}"',
+                timeout=timeout,
+            )
+            if self.error_in_output(cmd, output):
+                return None
+            if error is not None and error != "":
+                self.logger.error(f"{self}: run_shell_cmd: ERROR: {error.strip()}")
+                return None
+        except RequestError:
+            return None
 
         return output
 
@@ -78,22 +93,24 @@ class JUNOS:
         fpc: int = 0,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[str]:
-        output, _ = await self.ssh.execute(
-            f'request pfe execute target fpc{fpc} command "{cmd}"', timeout=timeout
-        )
-
-        # First check for junos error in stdout
-        if output is None or self.output_has_errors(cmd, output):
+        if self.ssh is None:
             return None
-
-        # Second check if pfe return error in stdout 2nd line as `Syntax error at 'wrong'`
         try:
-            command, error, output = output.split("\n", 2)
-            if "error" in error:
-                self.logger.error(f"{self}: run_pfe_cmd: ERROR: {error}")
+            output, error = await self.ssh.execute(
+                f'request pfe execute target fpc{fpc} command "{cmd}"',
+                timeout=timeout,
+            )
+            if self.error_in_output(cmd, output):
                 return None
-        except ValueError:
-            pass
+            try:
+                command, error, output = output.split("\n", 2)
+                if "error" in error:
+                    self.logger.error(f"{self}: run_pfe_cmd: ERROR: {error}")
+                    return None
+            except ValueError:
+                pass
+        except RequestError:
+            return None
 
         return output
 
@@ -102,15 +119,13 @@ class JUNOS:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[str]:
+        if self.ssh is None:
+            return None
         output, _ = await self.ssh.execute(
             f'request app-engine host-cmd "{cmd}"', timeout=timeout
         )
-        # First check for junos error in stdout
-        if output is None or self.output_has_errors(cmd, output):
+        if self.error_in_output(cmd, output):
             return None
-
-        # TODO:
-        # There is no option to detect error in host shell output :(
 
         return output
 
@@ -119,10 +134,12 @@ class JUNOS:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[_Element]:
+        if self.ssh is None:
+            return None
         output, _ = await self.ssh.execute(f"{cmd} | display xml", timeout=timeout)
 
         # First check for junos error in stdout
-        if output is None or self.output_has_errors(cmd, output):
+        if self.error_in_output(cmd, output):
             return None
 
         output = output.replace(" xmlns=", " xmlnamespace=").replace("junos:", "")
@@ -145,10 +162,13 @@ class JUNOS:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[Dict[Any, Any]]:
+        if self.ssh is None:
+            return None
+
         output, _ = await self.ssh.execute(f"{cmd} | display json", timeout=timeout)
 
         # First check for junos error in stdout
-        if output is None or self.output_has_errors(cmd, output):
+        if self.error_in_output(cmd, output):
             return None
 
         json_output = json.loads(output)
@@ -162,7 +182,7 @@ class JUNOS:
         self,
         config: str,
     ) -> bool:
-        if self.ssh.connection is None:
+        if self.ssh is None or self.ssh.connection is None:
             return False
         self.logger.debug(f"{self}: starting shell")
         stdin, stdout, stderr = await self.ssh.connection.open_session(

@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 from typing import Optional, Dict
+from dataclasses import dataclass, field
 
-from attrs import define
 
-
-@define
+@dataclass
 class Peer:
     device: Optional[str] = None
     interface: Optional[str] = None
 
 
-@define
+@dataclass
 class Member:
     peer: Optional[Peer] = None
 
 
-@define
+@dataclass
 class Interface:
-    members: Optional[Dict[str, Member]] = None
+    members: Dict[str, Member] = field(default_factory=dict)
     peer: Optional[Peer] = None
