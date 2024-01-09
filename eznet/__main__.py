@@ -10,7 +10,7 @@ import click
 
 from eznet import Device, Inventory
 from eznet.application import EZNet
-from eznet.inventory.tables import Devices, Interfaces, Members
+from eznet.inventory.tables import DevicesSummary, DeviceInterfaces
 
 
 async def main(eznet: EZNet) -> None:
@@ -39,12 +39,10 @@ async def main(eznet: EZNet) -> None:
         ]:
             await device.junos.run_host_cmd(cmd)
 
-    await eznet.gather(process)
-    eznet.console.print(Devices(eznet.inventory))
-    eznet.console.print(Interfaces(eznet.inventory, eznet.inventory.devices[0]))
-    eznet.console.print(Members(eznet.inventory, eznet.inventory.devices[0], "ae0"))
-    eznet.console.print(Members(eznet.inventory, eznet.inventory.devices[0], "ae1"))
-    eznet.console.print(Devices.add(Interfaces.add(Members))(eznet.inventory))
+    # await eznet.gather(process)
+
+    eznet.console.print(DevicesSummary(eznet.inventory))
+    eznet.console.print(DeviceInterfaces(eznet.inventory))
 
 
 @click.command()

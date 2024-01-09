@@ -8,12 +8,21 @@ from eznet.table import Table
 from . import Inventory, Device
 
 
-class Devices(Table[Inventory, Device]):
-    fields = ["device", "ssh.ip", "vars.hostname", "info.hostname"]
+class Dev(Table[Inventory, Device]):
+    fields = []
 
     def iter(self, inventory: Inventory) -> Iterable[Device]:
         for device in inventory.devices:
             yield device
+
+    @no_type_check
+    def row(self, inventory: Inventory, device: Device) -> Dict[str, Callable[[], Any]]:
+        return {
+        }
+
+
+class DevicesSummary(Dev):
+    fields = ["device", "ssh.ip", "vars.hostname", "info.hostname"]
 
     @no_type_check
     def row(self, inventory: Inventory, device: Device) -> Dict[str, Callable[[], Any]]:
@@ -53,3 +62,6 @@ class Members(Table[Inventory, Device, str, str]):
             "member": lambda: member_name,
             "member.state": lambda: device.info.interfaces[0][member_name].state,
         }
+
+
+DeviceInterfaces = Dev.add(Interfaces.add(Members))

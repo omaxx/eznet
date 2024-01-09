@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Union, Self, Dict, Any, Optional
+from typing import List, Union, Dict, Any, Optional
+from typing_extensions import Self
 from pathlib import Path
 import json
 from collections import defaultdict

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TypeVar, TypeVarTuple, ClassVar, Generic, List, Dict, Iterable, Callable, Any, Unpack, Tuple, Type, Self, Optional
 from abc import ABCMeta, abstractmethod
-from copy import copy
 
 from rich.table import Table as RTable
 
@@ -58,6 +57,6 @@ class Table(Generic[Unpack[M], S], metaclass=ABCMeta):
 
     @classmethod
     def add(cls, table: Type[Table[Unpack[Tuple[Unpack[M], S]], Any]]) -> Type[Self]:
-        _cls = copy(cls)
-        _cls.NEXT = table
+        class _cls(cls):
+            NEXT = table
         return _cls

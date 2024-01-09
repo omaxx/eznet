@@ -1,4 +1,4 @@
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, List, Dict
 
 import marshmallow
 import marshmallow_dataclass
@@ -15,7 +15,7 @@ class Device:
         self,
         name: str,
         site: Optional[str] = None,
-        ip: Union[str, list[str], dict[str, str], None] = None,
+        ip: Union[str, List[str], Dict[str, str], None] = None,
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
         root_pass: Optional[str] = None,
