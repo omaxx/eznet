@@ -1,36 +1,33 @@
 from __future__ import annotations
 
-from typing import TypeVar, ClassVar, Generic, List, Dict, Iterable, Callable, Any, Tuple, Type, Optional
-from typing_extensions import TypeVarTuple, Self, Unpack
+from typing import TypeVar, ClassVar, Generic, List, Dict, Iterable, Callable, Any, Tuple, Type, Optional, Union
+from typing_extensions import TypeVarTuple, Self, Unpack, ParamSpec
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 
 from rich.table import Table as RTable
 
 
-M = TypeVarTuple('M')
-S = TypeVar('S')
-S1 = TypeVar('S1')
+P = ParamSpec('P')
 
 
-class Table(Generic[Unpack[M], S], metaclass=ABCMeta):
-    fields: ClassVar[List[str]] = []
-    NEXT: Optional[Type[Table[Unpack[Tuple[Unpack[M], S]], Any]]] = None
+class Table(Generic[P], metaclass=ABCMeta):
+    @dataclass
+    class Fields:
+        pass
+
+    @abstractmethod
+    def main(self, *args: P.args, **kwargs: P.kwargs) -> Iterable[Union[Fields, Tuple[Fields, Table[Any]]]]:
+        pass
 
     @classmethod
-    def headers(cls) -> List[str]:
-        if cls.NEXT is None:
-            return [field for field in cls.fields]
-        else:
-            return [field for field in cls.fields] + cls.NEXT.headers()
+    def headers(cls) -> Iterable[str]:
+        return []
 
-    def __init__(self, *m: Unpack[M]) -> None:
-        self.rows: List[List[str]] = []
-        for s in self.iter(*m):
-            row = self.row(*m, s)
-            self.rows.append([self.eval(row.get(field)) for field in self.fields])
-            if self.NEXT is not None:
-                for srow in self.NEXT(*m, s).rows:
-                    self.rows.append([""] * len(self.fields) + srow)
+    def __init__(self, *args: P.args, **kwargs: P.kwargs) -> None:
+        self.rows = [
+            row for row in self.main(*args, **kwargs)
+        ]
 
     @staticmethod
     def eval(v: Any) -> str:
@@ -40,25 +37,10 @@ class Table(Generic[Unpack[M], S], metaclass=ABCMeta):
         except (AttributeError, IndexError) as err:
             return f"{err.__class__.__name__}"
 
-    @abstractmethod
-    def iter(self, *m: Unpack[M]) -> Iterable[S]:
-        ...
-
-    @abstractmethod
-    def row(self, *s: Unpack[Tuple[Unpack[M], S]]) -> Dict[str, Callable[[], Any]]:
-        ...
-
     def __rich__(self) -> RTable:
         table = RTable(expand=True)
-        for header in self.headers():
-            table.add_column(header)
-        for row in self.rows:
-            table.add_row(*row)
+        # for header in self.headers():
+        #     table.add_column(header)
+        # for row in self.rows:
+        #     table.add_row(*row)
         return table
-
-    @classmethod
-    def add(cls, table: Type[Table[Unpack[Tuple[Unpack[M], S]], Any]]) -> Type[Self]:
-        # FIXME:
-        class _cls(cls):  # type: ignore # noqa
-            NEXT = table
-        return _cls

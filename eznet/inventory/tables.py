@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable, Dict, Callable, Any, no_type_check, Tuple
+from dataclasses import dataclass
 
 from rich.console import Console
 from eznet.table import Table
@@ -8,60 +9,59 @@ from eznet.table import Table
 from . import Inventory, Device
 
 
-class Dev(Table[Inventory, Device]):
-    fields = []
+class Devices(Table[Inventory]):
+    @dataclass
+    class Fields(Table.Fields):
+        device: str
+        ssh_ip: str
+        vars_hostname: str
+        info_hostname: str
 
-    def iter(self, inventory: Inventory) -> Iterable[Device]:
+    def main(self, inventory: Inventory) -> Iterable[Fields]:
         for device in inventory.devices:
-            yield device
-
-    @no_type_check
-    def row(self, inventory: Inventory, device: Device) -> Dict[str, Callable[[], Any]]:
-        return {
-        }
-
-
-class DevicesSummary(Dev):
-    fields = ["device", "ssh.ip", "vars.hostname", "info.hostname"]
-
-    @no_type_check
-    def row(self, inventory: Inventory, device: Device) -> Dict[str, Callable[[], Any]]:
-        return {
-            "device": lambda: device.name,
-            "ssh.ip": lambda: device.ssh.ip,
-            "vars.hostname": lambda: device.vars.system.hostname,
-            "info.hostname": lambda: device.info.system.info[0].hostname,
-        }
+            yield self.Fields(
+                device=device.id,
+                ssh_ip=self.eval(lambda: device.ssh.ip),
+                vars_hostname=self.eval(lambda: device.vars.system.hostname),
+                info_hostname=self.eval(lambda: device.info.system.info[0].hostname)
+            )
 
 
-class Interfaces(Table[Inventory, Device, str]):
-    fields = ["interface", "interface.state"]
+class DeviceInterfaces(Table[Inventory]):
+    @dataclass
+    class Fields(Table.Fields):
+        device: str
 
-    def iter(self, inventory: Inventory, device: Device) -> Iterable[str]:
-        for interface_name in device.vars.interfaces.keys():
-            yield interface_name
-
-    @no_type_check
-    def row(self, inventory: Inventory, device: Device, interface_name: str) -> Dict[str, Callable[[], Any]]:
-        return {
-            "interface": lambda: interface_name,
-            "interface.state": lambda: device.info.interfaces[0][interface_name].state,
-        }
+    def main(self, inventory: Inventory) -> Iterable[Tuple[Fields, Interfaces]]:
+        for device in inventory.devices:
+            yield self.Fields(
+                device=device.id,
+            ), Interfaces(inventory, device)
 
 
-class Members(Table[Inventory, Device, str, str]):
-    fields = ["member", "member.state"]
+class Interfaces(Table[Inventory, Device]):
+    @dataclass
+    class Fields(Table.Fields):
+        interface: str
+        interface_state: str
 
-    def iter(self, inventory: Inventory, device: Device, interface_name: str) -> Iterable[str]:
-        for member_name in device.vars.interfaces[interface_name].members.keys():
-            yield member_name
-
-    @no_type_check
-    def row(self, inventory: Inventory, device: Device, interface_name: str, member_name: str) -> Dict[str, Callable[[], Any]]:
-        return {
-            "member": lambda: member_name,
-            "member.state": lambda: device.info.interfaces[0][member_name].state,
-        }
+    def main(self, inventory: Inventory, device: Device) -> Iterable[Tuple[Fields, Members]]:
+        for interface_name, interface in device.vars.interfaces.items():
+            yield self.Fields(
+                interface=interface_name,
+                interface_state=self.eval(lambda: device.info.interfaces[0][interface_name].state),
+            ), Members(inventory, device, interface_name)
 
 
-DeviceInterfaces = Dev.add(Interfaces.add(Members))
+class Members(Table[Inventory, Device, str]):
+    @dataclass
+    class Fields(Table.Fields):
+        member: str
+        member_state: str
+
+    def main(self, inventory: Inventory, device: Device, interface_name: str) -> Iterable[Fields]:
+        for member_name, member in device.vars.interfaces[interface_name].members.items():
+            yield self.Fields(
+                member=member_name,
+                member_state=self.eval(lambda: device.info.interfaces[0][member_name].state),
+            )
