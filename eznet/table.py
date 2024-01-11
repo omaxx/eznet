@@ -4,13 +4,46 @@ from typing import TypeVar, ClassVar, Generic, List, Dict, Iterable, Callable, A
 from typing_extensions import TypeVarTuple, Self, Unpack, ParamSpec
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, fields, asdict
+from enum import Enum, auto
 
 from rich.table import Table as RTable
-
+from rich.text import Text
 
 P = ParamSpec('P')
+V = TypeVar('V')
 
 NONE = ""
+
+
+class Value(Generic[V]):
+    class Status(Enum):
+        PASS = auto()
+        FAIL = auto()
+        NO_REF = auto()
+        NO_VARS = auto()
+        NO_INFO = auto()
+        ERROR = auto()
+
+        def __str__(self) -> str:
+            return self.name
+
+    STYLE = {
+        Status.PASS: "green",
+        Status.NO_VARS: "italic",
+        Status.NO_INFO: "bold red italic",
+    }
+
+    DEFAULT_STYLE = ""
+
+    def __init__(self, status: Status, v: Optional[V] = None):
+        self.status = status
+        self.v = v
+
+    def __rich__(self) -> Text:
+        if self.v is None:
+            return Text(f"{self.status}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
+        else:
+            return Text(f"{self.status}: {self.v}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
 
 
 class Table(Generic[P], metaclass=ABCMeta):
@@ -40,7 +73,7 @@ class Table(Generic[P], metaclass=ABCMeta):
         else:
             return cls.fields() + cls.TABLE.headers()
 
-    def rows(self):
+    def rows(self) -> Iterable[List[str]]:
         for row in self._rows:
             if isinstance(row, Table.Fields):
                 yield [asdict(row).get(field, "ERROR") for field in self.fields()]
@@ -52,15 +85,13 @@ class Table(Generic[P], metaclass=ABCMeta):
                 assert False
 
     @staticmethod
-    def eval(v: Any) -> str:
+    def eval(v: Callable[[], V]) -> Union[V, Value[V]]:
         try:
-            value = v()
-            if value is None:
-                return NONE
-            else:
-                return str(value)
-        except (AttributeError, IndexError) as err:
-            return f"{err.__class__.__name__}"
+            return v()
+        except AttributeError as err:
+            return Value(Value.Status.NO_VARS)
+        except IndexError as err:
+            return Value(Value.Status.NO_INFO)
 
     def __rich__(self) -> RTable:
         table = RTable(expand=True)
