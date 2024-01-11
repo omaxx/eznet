@@ -17,7 +17,7 @@ setup(
     author_email="",
     description="",
     entry_points={
-        "console_scripts": "eznet=eznet.__main__:cli",
+        "console_scripts": "eznet=eznet.__main__:run",
     },
     install_requires=install_requires,
 )

@@ -16,4 +16,4 @@ def test_create_table():
             )
 
     table = Empty(1)
-    assert table.rows[0].x == 1
+    assert table._rows[0].x == 1
