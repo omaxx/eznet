@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 from typing import TypeVar, ClassVar, Generic, List, Dict, Iterable, Callable, Any, Tuple, Type, Optional, Union
-from typing_extensions import TypeVarTuple, Self, Unpack, ParamSpec
+from typing_extensions import TypeVarTuple, Self, Unpack, ParamSpec, Literal
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, fields, asdict
 from enum import Enum, auto
@@ -9,16 +10,15 @@ from enum import Enum, auto
 from rich.table import Table as RTable
 from rich.text import Text
 
+logger = logging.getLogger(__name__)
+
 P = ParamSpec('P')
 V = TypeVar('V')
 
-NONE = ""
-
 
 class NO(Enum):
-    REF = auto()
-    VALUE = auto()
-
+    NE = "NONE"
+    
 
 class Value(Generic[V]):
     class Status(Enum):
@@ -42,12 +42,12 @@ class Value(Generic[V]):
 
     DEFAULT_STYLE = ""
 
-    def __init__(self, v: Optional[V], status: Status, ):
+    def __init__(self, v: Union[V, NO], status: Status, ):
         self.v = v
         self.status = status
 
     def __rich__(self) -> Text:
-        if self.v is NO.VALUE:
+        if self.v is NO.NE:
             return Text(f"{self.status}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
         else:
             return Text(f"{self.status}: {self.v}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
@@ -93,17 +93,17 @@ class Table(Generic[P], metaclass=ABCMeta):
 
     @staticmethod
     def eval(
-        value: Callable[[], V],
-        ref: Optional[Union[Any, Callable[[], Any]]] = NO.REF,
+        v: Callable[[], V],
+        ref: Optional[Union[Any, Callable[[], Any]]] = NO.NE,
         func: Callable[[V, Any], bool] = lambda v, r: v == r,
     ) -> Union[V, Value[V]]:
         try:
-            value = value()
+            value = v()
         except AttributeError as err:
-            return Value(NO.VALUE, Value.Status.NO_VARS)
+            return Value(NO.NE, Value.Status.NO_VARS)
         except IndexError as err:
-            return Value(NO.VALUE, Value.Status.NO_INFO)
-        if ref == NO.REF:
+            return Value(NO.NE, Value.Status.NO_INFO)
+        if ref == NO.NE:
             return value
         if callable(ref):
             try:
@@ -113,6 +113,7 @@ class Table(Generic[P], metaclass=ABCMeta):
         try:
             return Value(value, (Value.Status.FAIL, Value.Status.PASS)[func(value, ref)])
         except Exception as err:
+            logger.error(f"table: error {err} during validate {func} of {v}, {ref}")
             return Value(value, Value.Status.VALIDATE_ERROR)
 
     def __rich__(self) -> RTable:

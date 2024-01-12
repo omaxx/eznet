@@ -25,7 +25,7 @@ class Devices(Table[Inventory]):
                 ssh_ip=self.eval(lambda: device.ssh.ip),  # type: ignore
                 ssh_error=self.eval(lambda: device.ssh.error, None),  # type: ignore
                 vars_hostname=self.eval(lambda: device.vars.system.hostname),  # type: ignore
-                info_hostname=self.eval(lambda: device.info.system.info[0].hostname)
+                info_hostname=self.eval(lambda: device.info.system.info[0].hostname),  # type: ignore
             )
 
 
