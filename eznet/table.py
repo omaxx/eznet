@@ -53,21 +53,17 @@ class Value(Generic[V]):
             return Text(f"{self.status}: {self.v}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
 
 
-class Table(Generic[P], metaclass=ABCMeta):
+class Table:
     @dataclass
     class Fields:
         pass
 
-    TABLE: ClassVar[Optional[Type[Table[Any]]]] = None
+    TABLE: ClassVar[Optional[Type[Table]]] = None
 
-    def __init__(self, *args: P.args, **kwargs: P.kwargs) -> None:
+    def __init__(self, main: Callable[[], Iterable[Union[Fields, Tuple[Fields, Table]]]]) -> None:
         self._rows = [
-            row for row in self.main(*args, **kwargs)
+            row for row in main()
         ]
-
-    @abstractmethod
-    def main(self, *args: P.args, **kwargs: P.kwargs) -> Iterable[Union[Fields, Tuple[Fields, Table[Any]]]]:
-        pass
 
     @classmethod
     def fields(cls) -> List[str]:

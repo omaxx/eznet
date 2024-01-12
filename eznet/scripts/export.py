@@ -7,7 +7,7 @@ from eznet import Inventory
 @click.option(
     "--inventory", "-i", required=True, type=click.types.Path(exists=True)
 )
-def main(inventory) -> None:
+def main(inventory: str) -> None:
     print(Inventory().load(inventory).export_as_rundeck())
 
 

@@ -10,7 +10,7 @@ import click
 
 from eznet import Device, Inventory
 from eznet.application import EZNet
-from eznet.inventory.tables import Devices, DeviceInterfaces
+from eznet import tables
 
 
 async def main(eznet: EZNet) -> None:
@@ -41,8 +41,8 @@ async def main(eznet: EZNet) -> None:
 
     await eznet.gather(process)
 
-    eznet.console.print(Devices(eznet.inventory))
-    eznet.console.print(DeviceInterfaces(eznet.inventory))
+    eznet.console.print(tables.inventory.DevSummary(eznet.inventory))
+    eznet.console.print(tables.inventory.DevInterfaces(eznet.inventory))
 
 
 @click.command()
