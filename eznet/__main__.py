@@ -39,7 +39,7 @@ async def main(eznet: EZNet) -> None:
         ]:
             await device.junos.run_host_cmd(cmd)
 
-    # await eznet.gather(process)
+    await eznet.gather(process)
 
     eznet.console.print(Devices(eznet.inventory))
     eznet.console.print(DeviceInterfaces(eznet.inventory))

@@ -15,14 +15,20 @@ V = TypeVar('V')
 NONE = ""
 
 
+class NO(Enum):
+    REF = auto()
+    VALUE = auto()
+
+
 class Value(Generic[V]):
     class Status(Enum):
         PASS = auto()
         FAIL = auto()
         NO_REF = auto()
+        NO_DATA = auto()
         NO_VARS = auto()
         NO_INFO = auto()
-        ERROR = auto()
+        VALIDATE_ERROR = auto()
 
         def __str__(self) -> str:
             return self.name
@@ -31,16 +37,17 @@ class Value(Generic[V]):
         Status.PASS: "green",
         Status.NO_VARS: "italic",
         Status.NO_INFO: "bold red italic",
+        Status.FAIL: "bold red reverse"
     }
 
     DEFAULT_STYLE = ""
 
-    def __init__(self, status: Status, v: Optional[V] = None):
-        self.status = status
+    def __init__(self, v: Optional[V], status: Status, ):
         self.v = v
+        self.status = status
 
     def __rich__(self) -> Text:
-        if self.v is None:
+        if self.v is NO.VALUE:
             return Text(f"{self.status}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
         else:
             return Text(f"{self.status}: {self.v}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
@@ -85,13 +92,28 @@ class Table(Generic[P], metaclass=ABCMeta):
                 assert False
 
     @staticmethod
-    def eval(v: Callable[[], V]) -> Union[V, Value[V]]:
+    def eval(
+        value: Callable[[], V],
+        ref: Optional[Union[Any, Callable[[], Any]]] = NO.REF,
+        func: Callable[[V, Any], bool] = lambda v, r: v == r,
+    ) -> Union[V, Value[V]]:
         try:
-            return v()
+            value = value()
         except AttributeError as err:
-            return Value(Value.Status.NO_VARS)
+            return Value(NO.VALUE, Value.Status.NO_VARS)
         except IndexError as err:
-            return Value(Value.Status.NO_INFO)
+            return Value(NO.VALUE, Value.Status.NO_INFO)
+        if ref == NO.REF:
+            return value
+        if callable(ref):
+            try:
+                ref = ref()
+            except (AttributeError, IndexError):
+                return Value(value, Value.Status.NO_REF)
+        try:
+            return Value(value, (Value.Status.FAIL, Value.Status.PASS)[func(value, ref)])
+        except Exception as err:
+            return Value(value, Value.Status.VALIDATE_ERROR)
 
     def __rich__(self) -> RTable:
         table = RTable(expand=True)
