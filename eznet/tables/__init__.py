@@ -1,2 +1,2 @@
-from . import inventory
 from . import device
+from . import inventory
