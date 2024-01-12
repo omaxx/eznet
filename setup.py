@@ -17,7 +17,10 @@ setup(
     author_email="",
     description="",
     entry_points={
-        "console_scripts": "eznet=eznet.__main__:run",
+        "console_scripts": [
+            "eznet=eznet.__main__:run",
+            "eznet_to_rundeck=eznet.scripts.export:main",
+        ]
     },
     install_requires=install_requires,
 )

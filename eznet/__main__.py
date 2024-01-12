@@ -47,7 +47,7 @@ async def main(eznet: EZNet) -> None:
 
 @click.command()
 @click.option(
-    "--inventory", "-i", required=True,
+    "--inventory", "-i", required=True, type= click.types.Path(exists=True)
 )
 def run(inventory: str) -> None:
     sleep(1)  # FIXME: workaround for PY-65984

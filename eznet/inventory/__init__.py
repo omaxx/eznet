@@ -22,9 +22,9 @@ class Inventory:
         self.devices: List[Device] = []
 
     def device(self, name: str) -> Optional[Device]:
-        for d in self.devices:
-            if d.name == name:
-                return d
+        for dev in self.devices:
+            if dev.name == name:
+                return dev
         else:
             return None
 
@@ -91,3 +91,11 @@ class Inventory:
         for d in self.devices:
             sites[d.site].append(d)
         return sites
+
+    def export_as_rundeck(self) -> str:
+        return yaml.safe_dump({
+            dev.id: {
+                "nodename": dev.id,
+                **({"hostname": dev.ssh.ip} if dev.ssh is not None else {})
+            } for dev in self.devices
+        })
