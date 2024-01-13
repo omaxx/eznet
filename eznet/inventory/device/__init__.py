@@ -25,7 +25,7 @@ class Device:
         self.site = site
         self.id = self.name if self.site is None else self.site + "." + self.name
         self.vars: vars.Device = device_vars_schema.load(kwargs)
-        self.info = info.Device()
+        self.info = info.Device(self)
         self.ssh: Optional[drivers.SSH] = None
 
         ssh = dict(

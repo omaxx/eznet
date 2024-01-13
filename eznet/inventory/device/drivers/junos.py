@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, Union
+from pathlib import Path
 import logging
 import re
 import json
@@ -230,3 +231,33 @@ class Junos:
         else:
             self.logger.error(f"{self}: ssh shell: could not enter to config mode")
         return False
+
+    async def download(self, remote_path: Union[Path, str], local_path: Union[Path, str]) -> bool:
+        if self.ssh is None or self.ssh.connection is None:
+            return False
+        if isinstance(remote_path, str):
+            remote_path = Path(remote_path)
+        if remote_path.is_absolute():
+            tmp_file_name = (
+                f"{Path(remote_path).relative_to('/')}"
+                .replace("/", ".")
+                .replace("*", "")
+                + ".tgz"
+            )
+        else:
+            tmp_file_name = (
+                f"{Path(remote_path)}"
+                .replace("/", ".")
+                .replace("*", "")
+                + ".tgz"
+            )
+        await self.run_cmd(
+            f'request routing-engine execute command "tar -czf ./{tmp_file_name} {remote_path}" routing-engine both'
+        )
+        await self.run_cmd(f"file copy re0:./{tmp_file_name} ./re0.{tmp_file_name}")
+        await self.run_cmd(f"file copy re1:./{tmp_file_name} ./re1.{tmp_file_name}")
+        await self.ssh.download(f"re0.{tmp_file_name}", local_path)
+        await self.ssh.download(f"re1.{tmp_file_name}", local_path)
+        await self.run_cmd(f"file delete ./re0.{tmp_file_name}")
+        await self.run_cmd(f"file delete ./re1.{tmp_file_name}")
+        return True

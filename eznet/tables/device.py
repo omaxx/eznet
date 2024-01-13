@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Iterable, Tuple
 
 from eznet.table import Table
@@ -40,4 +41,26 @@ class Interfaces(Table):
                     interface=interface_name,
                     interface_state=self.eval(lambda: device.info.interfaces[0][interface_name].state),  # type: ignore
                 ), Members(inventory, device, interface_name)
+        super().__init__(main)
+
+
+class Alarms(Table):
+    @dataclass
+    class Fields(Table.Fields):
+        ts: datetime
+        cls: str
+        description: str
+        type: str
+
+    def __init__(self, inventory: Inventory, device: Device):
+        def main() -> Iterable[Alarms.Fields]:
+            if len(device.info.system.alarms) == 0:
+                return
+            for alarm in device.info.system.alarms[0]:
+                yield self.Fields(
+                    ts=alarm.ts,
+                    cls=self.eval(alarm.cls, ["Major"], lambda v, r: v not in r),
+                    description=alarm.description,
+                    type=alarm.type,
+                )
         super().__init__(main)

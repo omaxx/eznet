@@ -89,16 +89,19 @@ class Table:
 
     @staticmethod
     def eval(
-        v: Callable[[], V],
-        ref: Optional[Union[Any, Callable[[], Any]]] = NO.NE,
+        v: Union[Callable[[], V], V],
+        ref: Optional[Union[Callable[[], Any], Any]] = NO.NE,
         func: Callable[[V, Any], bool] = lambda v, r: v == r,
     ) -> Union[V, Value[V]]:
-        try:
-            value = v()
-        except AttributeError as err:
-            return Value(NO.NE, Value.Status.NO_VARS)
-        except IndexError as err:
-            return Value(NO.NE, Value.Status.NO_INFO)
+        if callable(v):
+            try:
+                value = v()
+            except AttributeError as err:
+                return Value(NO.NE, Value.Status.NO_VARS)
+            except IndexError as err:
+                return Value(NO.NE, Value.Status.NO_INFO)
+        else:
+            value = v
         if ref == NO.NE:
             return value
         if callable(ref):
@@ -112,10 +115,19 @@ class Table:
             logger.error(f"table: error {err} during validate {func} of {v}, {ref}")
             return Value(value, Value.Status.VALIDATE_ERROR)
 
+    @staticmethod
+    def to_rich(
+        v: Any,
+    ) -> Union[str, int, Value[Any]]:
+        if isinstance(v, (str, int, Value)):
+            return v
+        else:
+            return str(v)
+
     def __rich__(self) -> RTable:
         table = RTable(expand=True)
         for header in self.headers():
             table.add_column(header)
         for row in self.rows():
-            table.add_row(*row)
+            table.add_row(*(self.to_rich(v) for v in row))
         return table

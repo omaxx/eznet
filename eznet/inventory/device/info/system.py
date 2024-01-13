@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 
 from lxml.etree import _Element  # noqa
 
 import eznet
-from eznet.parsers.xml import text
+from eznet.data import Data
+from eznet.parsers.xml import text, timestamp
 
 
 @dataclass
@@ -39,6 +41,38 @@ class Info:
         return None
 
 
+@dataclass
+class Alarm:
+    ts: Optional[datetime]
+    cls: Optional[str]
+    description: Optional[str]
+    type: Optional[str]
+
+    @staticmethod
+    def from_xml(alarm: _Element) -> Alarm:
+        return Alarm(
+            ts=timestamp(alarm, "alarm-time"),
+            cls=text(alarm, "alarm-class"),
+            description=text(alarm, "alarm-description"),
+            type=text(alarm, "alarm-type"),
+        )
+
+    @staticmethod
+    async def fetch(device: eznet.Device) -> Optional[List[Alarm]]:
+        xml = await device.junos.run_xml_cmd(
+            "show system alarms",
+        )
+        if xml is not None:
+            alarm_info = xml.find("alarm-information")
+            if alarm_info is not None:
+                return [
+                    Alarm.from_xml(alarm)
+                    for alarm in alarm_info.findall("alarm-detail")
+                ]
+        return None
+
+
 class System:
-    def __init__(self) -> None:
-        self.info: list[Info] = []
+    def __init__(self, device: eznet.Device) -> None:
+        self.info = Data(Info.fetch, device)
+        self.alarms = Data(Alarm.fetch, device)

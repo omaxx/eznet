@@ -27,39 +27,22 @@ def run(
 ) -> None:
     sleep(1)  # FIXME: workaround for PY-65984
 
-    def device_filter(device: Device):
+    def device_filter(device: Device) -> bool:
         return device_id is None or fnmatch.fnmatch(device.id, device_id)
 
     async def main(eznet: EZNet) -> None:
         async def process(device: Device) -> None:
-            for cmd in [
-                "show system info",
-                "show system alarms",
-            ]:
-                await device.junos.run_cmd(cmd)
+            await device.info.system.info.fetch()
+            await device.info.system.alarms.fetch()
 
-            for cmd in [
-                "show heap",
-                "show syslog messages",
-            ]:
-                await device.junos.run_pfe_cmd(cmd)
-
-            for cmd in [
-                "pwd",
-                "ls -l",
-            ]:
-                await device.junos.run_shell_cmd(cmd)
-
-            for cmd in [
-                "pwd",
-                "ls -l",
-            ]:
-                await device.junos.run_host_cmd(cmd)
-
-        await eznet.gather(process, device_filter=device_filter)
-
-        eznet.console.print(tables.inventory.DevSummary(eznet.inventory, device_filter=device_filter))
-        eznet.console.print(tables.inventory.DevInterfaces(eznet.inventory, device_filter=device_filter))
+        try:
+            await eznet.gather(process, device_filter=device_filter)
+        except KeyboardInterrupt:
+            eznet.console.print("Interrupted!!!")
+            raise SystemExit(130)
+        finally:
+            eznet.console.print(tables.inventory.DevStatus(eznet.inventory, device_filter=device_filter))
+            eznet.console.print(tables.inventory.DevAlarms(eznet.inventory, device_filter=device_filter))
 
     try:
         asyncio.run(main(EZNet(inventory)))
