@@ -5,6 +5,7 @@ from types import TracebackType
 
 import asyncssh
 import asyncio
+from asyncio.exceptions import CancelledError
 import os
 import logging
 import socket
@@ -93,6 +94,7 @@ class SSH:
             if self.connection is not None:
                 return
             self.state = State.WAITING_CONNECT
+            self.error = None
             await connection_semaphore[asyncio.get_running_loop()].acquire()
             while attempts > 0:
                 self.state = State.CONNECTING
@@ -123,6 +125,12 @@ class SSH:
                     self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
                     # Semaphore.get().connect.release()
                     # raise ConnectError() from None
+                except asyncio.exceptions.CancelledError as err:
+                    self.state = State.DISCONNECTED
+                    self.error = f"{err.__class__.__name__}"
+                    self.logger.info(f"{self}: {err.__class__.__name__}: {err}")
+                    connection_semaphore[asyncio.get_running_loop()].release()
+                    raise
                 except Exception as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
@@ -131,7 +139,6 @@ class SSH:
                     raise
                 else:
                     self.state = State.CONNECTED
-                    self.error = None
                     self.logger.info(f"{self}: CONNECTED")
                     return
 
@@ -144,7 +151,8 @@ class SSH:
             raise ConnectError(self.error)
 
     def disconnect(self) -> None:
-        pass
+        if self.connection is not None:
+            self.connection.close()
 
     async def execute(
         self,
