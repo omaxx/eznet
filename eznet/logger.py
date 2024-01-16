@@ -9,6 +9,8 @@ from rich.theme import Theme
 
 from eznet import Device
 
+MODULE = __name__.split(".")[0]
+
 
 class LogHighlighter(RegexHighlighter):
     base_style = "eznet."
@@ -35,11 +37,10 @@ console = Console(
 
 
 def config_logger(
-    module: str,
     level: int,
     file: Union[None, str, Path] = None,
 ) -> None:
-    logger = logging.getLogger(module)
+    logger = logging.getLogger(MODULE)
     logger.setLevel(level)
 
     logger.addHandler(
@@ -70,7 +71,6 @@ def config_logger(
 
 
 def config_device_logger(
-    module: str,
     device: Device,
     level: int,
     file: Union[str, Path],
@@ -80,7 +80,7 @@ def config_device_logger(
     if not file.parent.exists():
         file.parent.mkdir(parents=True)
 
-    logger = logging.getLogger(f"{module}.device.{device.id}")
+    logger = logging.getLogger(f"{MODULE}.device.{device.id}")
     logger.setLevel(level)
 
     handler = logging.FileHandler(file, mode="w")

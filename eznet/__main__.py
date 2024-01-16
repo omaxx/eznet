@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from time import sleep
-from typing import Callable, Dict, Any, List, Iterable, Optional
+from typing import Callable, Dict, Any, List, Iterable, Optional, Union
 import fnmatch
+from pathlib import Path
+import logging
 
 import click
+from rich.console import Console
 
 from eznet import Device, Inventory
-from eznet.application import EZNet
 from eznet import tables
+from eznet.logger import config_logger
+
+JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
 
 
 @click.command()
@@ -19,36 +25,50 @@ from eznet import tables
     "--inventory", "-i", help="Inventory path", required=True, type=click.types.Path(exists=True),
 )
 @click.option(
-    "--device", "-d", "device_id", help="device filter", default="*",
+    "--device", "-d", "devices_id", help="device filter", default=("*",), multiple=True,
 )
 def run(
-    inventory: str,
-    device_id: Optional[str],
+    inventory: Union[Inventory, str, Path],
+    devices_id: Optional[str],
 ) -> None:
     sleep(1)  # FIXME: workaround for PY-65984
 
-    def device_filter(device: Device) -> bool:
-        return device_id is None or fnmatch.fnmatch(device.id, device_id)
+    console = Console()
+    config_logger(logging.INFO)
 
-    async def main(eznet: EZNet) -> None:
+    if not isinstance(inventory, Inventory):
+        inventory = Inventory().load(inventory)
+
+    def device_filter(device: Device) -> bool:
+        return devices_id is None or any(fnmatch.fnmatch(device.id, device_id) for device_id in devices_id)
+
+    async def main() -> None:
         async def process(device: Device) -> None:
-            await device.info.system.info.fetch()
-            await device.info.system.alarms.fetch()
+            if device.ssh:
+                async with device.ssh:
+                    await device.info.system.info.fetch()
+                    await device.info.system.alarms.fetch()
 
         try:
-            await eznet.gather(process, device_filter=device_filter)
-        except KeyboardInterrupt:
-            eznet.console.print("Interrupted!!!")
-            raise SystemExit(130)
+            await asyncio.gather(*(
+                process(device) for device in inventory.devices if device_filter(device)
+            ), return_exceptions=True)
         finally:
-            eznet.console.print(tables.inventory.DevStatus(eznet.inventory, device_filter=device_filter))
-            eznet.console.print(tables.inventory.DevAlarms(eznet.inventory, device_filter=device_filter))
+            console.print()
+            console.print(tables.inventory.DevStatus(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevAlarms(inventory, device_filter=device_filter))
 
+    time_start = datetime.now()
+    job_name = time_start.strftime(JOB_TS_FORMAT)
+    console.print(f"{job_name}: [black on white]job started at {time_start}")
     try:
-        asyncio.run(main(EZNet(inventory)))
-
+        asyncio.run(main())
     except KeyboardInterrupt:
+        console.print(f"{job_name}: [white on red]keyboard interrupted")
         raise SystemExit(130)
+    finally:
+        time_stop = datetime.now()
+        console.print(f"{job_name}: [black on white]job finished at {time_stop}")
 
 
 if __name__ == "__main__":
