@@ -27,24 +27,21 @@ JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
 @click.option(
     "--device", "-d", "devices_id", help="device filter", default=("*",), multiple=True,
 )
-@click.option(
-    "--terminal/--no-terminal", "-t", "force_terminal", help="force terminale", default=None,
-)
-@click.option(
-    "--width", "-w", help="terminal width", type=int,
-)
+# @click.option(
+#     "--terminal/--no-terminal", "-t", "force_terminal", help="force terminale", default=None,
+# )
+# @click.option(
+#     "--width", "-w", help="terminal width", type=int,
+# )
 def run(
     inventory: Union[Inventory, str, Path],
     devices_id: Optional[str],
-    force_terminal: bool,
-    width: Optional[int],
+    # force_terminal: bool,
+    # width: Optional[int],
 ) -> None:
     sleep(1)  # FIXME: workaround for PY-65984
 
-    console = Console(
-        force_terminal=force_terminal,
-        width=width,
-    )
+    console = Console()
     config_logger(logging.INFO)
 
     if not isinstance(inventory, Inventory):
