@@ -128,7 +128,7 @@ class SSH:
                 except asyncio.exceptions.CancelledError as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
-                    self.logger.info(f"{self}: {err.__class__.__name__}: {err}")
+                    self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
                     connection_semaphore[asyncio.get_running_loop()].release()
                     raise
                 except Exception as err:

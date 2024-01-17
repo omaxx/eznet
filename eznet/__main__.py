@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from time import sleep
-from typing import Callable, Dict, Any, List, Iterable, Optional, Union
+from typing import Callable, Dict, Any, List, Iterable, Optional, Union, Tuple
 import fnmatch
 from pathlib import Path
 import logging
@@ -25,7 +25,7 @@ JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
     "--inventory", "-i", help="Inventory path", required=True, type=click.types.Path(exists=True),
 )
 @click.option(
-    "--device", "-d", "devices_id", help="device filter", default=("*",), multiple=True,
+    "--device", "-d", "devices_id", help="device id filter", default=("*",), multiple=True,
 )
 @click.option(
     "--terminal/--no-terminal", "-t", "force_terminal", help="force terminale", default=None,
@@ -33,11 +33,21 @@ JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
 @click.option(
     "--width", "-w", help="terminal width", type=int,
 )
+@click.option(
+    "--error-if-all/--no-error-if-all", help="exit code 1 if connect error to ALL devices",
+    default=True, show_default=True,
+)
+@click.option(
+    "--error-if-any/--no-error-if-any", help="exit code 2 if connect error to ANY device",
+    default=False, show_default=True,
+)
 def run(
     inventory: Union[Inventory, str, Path],
-    devices_id: Optional[str],
-    force_terminal: bool,
-    width: Optional[int],
+    devices_id: Optional[Tuple[str, ...]],
+    force_terminal: Optional[bool] = None,
+    width: Optional[int] = None,
+    error_if_all: bool = True,
+    error_if_any: bool = False,
 ) -> None:
     sleep(1)  # FIXME: workaround for PY-65984
 
@@ -65,11 +75,16 @@ def run(
                     await device.info.system.alarms.fetch()
 
         try:
-            await asyncio.gather(*(
+            errors = [ret is not None for ret in await asyncio.gather(*(
                 process(device) for device in inventory.devices if device_filter(device)
-            ), return_exceptions=True)
-        finally:
+            ), return_exceptions=True)]
+            if error_if_all and all(errors):
+                raise SystemExit(1)
+            if error_if_any and any(errors):
+                raise SystemExit(2)
+        except KeyboardInterrupt:
             console.print()
+        finally:
             console.print(tables.inventory.DevStatus(inventory, device_filter=device_filter))
             console.print(tables.inventory.DevAlarms(inventory, device_filter=device_filter))
 
