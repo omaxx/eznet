@@ -108,11 +108,10 @@ class SW:
             mre_results = xml.find("multi-routing-engine-results")
             if mre_results is not None:
                 return {
-                    text(mre_item, "re-name"):
-                        SW.from_xml(mre_item.find("software-information"))
+                    re_name: SW.from_xml(sw_info)
                     for mre_item in mre_results.findall("multi-routing-engine-item")
-                    if text(mre_item, "re-name") is not None
-                    and mre_item.find("software-information") is not None
+                    if (re_name := text(mre_item, "re-name")) is not None
+                    and (sw_info := mre_item.find("software-information")) is not None
                 }
         return None
 
@@ -150,11 +149,10 @@ class Uptime:
             mre_results = xml.find("multi-routing-engine-results")
             if mre_results is not None:
                 return {
-                    text(mre_item, "re-name"):
-                        Uptime.from_xml(mre_item.find("system-uptime-information"))
+                    re_name: Uptime.from_xml(sw_uptime_info)
                     for mre_item in mre_results.findall("multi-routing-engine-item")
-                    if text(mre_item, "re-name") is not None
-                    and mre_item.find("system-uptime-information") is not None
+                    if (re_name := text(mre_item, "re-name")) is not None
+                    and (sw_uptime_info := mre_item.find("system-uptime-information")) is not None
                 }
         return None
 
@@ -174,7 +172,7 @@ class CoreDump:
             size=number(file_info, "file-size"),
             ts=timestamp(file_info, "file-date"),
             re=text(file_info, "../../../re-name"),
-            host=file_info.find("../..").attrib.get("style") == "host" or None,
+            host=file_info.find("../..").attrib.get("style") == "host" or None,  # type: ignore[union-attr]
         )
 
     @staticmethod

@@ -132,16 +132,16 @@ def log_files(device: Device) -> Iterable[str]:
 
 async def process(
     device: Device,
-    job_path: Union[Path, str, None],
-):
+    job_path: Union[Path, str],
+) -> None:
     if isinstance(job_path, str):
         job_path = Path(job_path)
 
     with open(job_path / f"{device.id}.info", "w") as io:
-        print(await device.info.system.info(), file=io)
-        print(await device.info.chassis.re(), file=io)
-        print(await device.info.chassis.fpc(), file=io)
-        print(await device.info.system.uptime(), file=io)
+        print(await device.info.system.info.fetch(), file=io)
+        print(await device.info.chassis.re.fetch(), file=io)
+        print(await device.info.chassis.fpc.fetch(), file=io)
+        print(await device.info.system.uptime.fetch(), file=io)
 
     if not job_path.exists():
         job_path.mkdir(parents=True)
@@ -163,7 +163,7 @@ async def process(
             print(f"{' ' + cmd + ' ':^^120}", file=io)
             print(file=io)
 
-    for fpc_number in device.info.chassis.fpc["default"].keys():
+    for fpc_number in device.info.chassis.fpc[0].keys():
         with open(job_path / f"{device.id}.fpc{fpc_number}", "w") as io:
             for cmd in pfe_commands(device):
                 print(f"{' ' + cmd + ' ':=^120}", file=io)

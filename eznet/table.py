@@ -7,6 +7,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, fields, asdict
 from enum import Enum, auto
 
+from rich.console import RichCast
 from rich.table import Table as RTable
 from rich.text import Text
 
@@ -118,8 +119,8 @@ class Table:
     @staticmethod
     def to_rich(
         v: Any,
-    ) -> Union[str, int, Value[Any]]:
-        if isinstance(v, (str, int, Value)):
+    ) -> Union[str, RichCast]:
+        if isinstance(v, (str, Value)):
             return v
         else:
             return str(v)

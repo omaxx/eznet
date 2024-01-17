@@ -39,6 +39,7 @@ class Alarm:
                     Alarm.from_xml(alarm)
                     for alarm in alarm_info.findall("alarm-detail")
                 ]
+        return None
 
 
 @dataclass
@@ -94,8 +95,9 @@ class FPC:
             memory_buffer_utilization=number(fpc, "memory-buffer-utilization"),
             description=text(fpc, "description"),
             pics={
-                number(pic, "pic-slot"): PIC.from_xml(pic)
+                pic_slot: PIC.from_xml(pic)
                 for pic in fpc.findall("pic")
+                if (pic_slot := number(pic, "pic-slot")) is not None
             },
         )
 
@@ -106,8 +108,9 @@ class FPC:
             fpc_info = show_chassis_fpc.find("fpc-information")
             if fpc_info is not None:
                 fpc_dict = {
-                    number(fpc, "slot"): FPC.from_xml(fpc)
+                    fpc_slot: FPC.from_xml(fpc)
                     for fpc in fpc_info.findall("fpc")
+                    if (fpc_slot := number(fpc, "slot")) is not None
                 }
 
                 if not get_ports:
@@ -120,10 +123,12 @@ class FPC:
                             )
                             if xml is not None:
                                 pic.ports = {
-                                    number(port, "port-number"): Port.from_xml(port)
+                                    port_number: Port.from_xml(port)
                                     for port in xml.findall("fpc-information/fpc/pic-detail/port-information/port")
+                                    if (port_number := number(port, "port-number")) is not None
                                 }
                     return fpc_dict
+        return None
 
 
 @dataclass
@@ -133,18 +138,18 @@ class FW:
     @staticmethod
     def from_xml(xml: _Element) -> FW:
         fw = {
-            text(e, "type"): text(e, "firmware-version")
+            fw_type: text(e, "firmware-version")
             for e in xml.findall("firmware")
+            if (fw_type := text(e, "type")) is not None
         }
-        if "ONIE/DIAG" in fw:
+        if "ONIE/DIAG" in fw and (onie_diag := fw.pop("ONIE/DIAG")) is not None:
             try:
-                fw["ONIE"], fw["DIAG"] = fw.pop("ONIE/DIAG").split("/")
+                fw["ONIE"], fw["DIAG"] = onie_diag.split("/")
             except ValueError:
                 pass
-        fw = {key: value.strip() for key, value in fw.items() if value is not None}
 
         return FW(
-            fw=fw,
+            fw={key: value.strip() for key, value in fw.items() if value is not None},
         )
 
     @staticmethod
@@ -159,6 +164,7 @@ class FW:
                     for e in fw_info.findall("chassis-module")
                     if "FPC " in text(e, "name")
                 }
+        return None
 
 
 @dataclass
@@ -186,10 +192,11 @@ class RE:
             re_information = show_chassis_re.find("route-engine-information")
             if re_information is not None:
                 return {
-                    number(e, "slot"):
-                    RE.from_xml(e) for e in re_information.findall("route-engine")
-                    if number(e, "slot") is not None
+                    slot: RE.from_xml(e)
+                    for e in re_information.findall("route-engine")
+                    if (slot := number(e, "slot")) is not None
                 }
+        return None
 
 
 class Chassis:
