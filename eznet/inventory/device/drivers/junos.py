@@ -232,6 +232,38 @@ class Junos:
             self.logger.warning(f"{self}: ssh shell: could not enter to config mode")
         return False
 
+    async def download(
+        self,
+        remote_path: Union[Path, str],
+        local_path: Union[Path, str],
+        re: Literal["re0", "re1", "both", ""] = "",
+    ) -> bool:
+        if self.ssh is None or self.ssh.connection is None:
+            return False
+        if isinstance(remote_path, str):
+            remote_path = Path(remote_path)
+        if isinstance(local_path, str):
+            local_path = Path(local_path)
+        if not local_path.exists():
+            local_path.mkdir(parents=True)
+        tmp_folder = "."
+        tmp_file_name = remote_path.name
+        local_file_name = tmp_file_name
+        if re in ["re0", "both"]:
+            await self.run_cmd(f"file rename re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}")
+            await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", f"{local_path}/re0.{local_file_name}")
+            await self.run_cmd(f"file delete {tmp_folder}/re0.{tmp_file_name}")
+
+        if re in ["re1", "both"]:
+            await self.run_cmd(f"file rename re1:{remote_path} {tmp_folder}/re1.{tmp_file_name}")
+            await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
+            await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
+            return True
+
+        if re == "":
+            await self.ssh.download(f"{remote_path}", f"{local_path}/{local_file_name}")
+            await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
+
     async def download_tar(
         self,
         remote_path: Union[Path, str],
@@ -242,25 +274,31 @@ class Junos:
             return False
         if isinstance(remote_path, str):
             remote_path = Path(remote_path)
+        if isinstance(local_path, str):
+            local_path = Path(local_path)
+        if not local_path.exists():
+            local_path.mkdir(parents=True)
         if remote_path.is_absolute():
             tmp_file_name = (
-                f"{Path(remote_path).relative_to('/')}"
+                f"{remote_path.relative_to('/')}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
         else:
             tmp_file_name = (
-                f"{Path(remote_path)}"
+                f"{remote_path}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
         tmp_folder = "."
+        local_file_name = tmp_file_name
         re_command = {
             "re0": " re0",
             "re1": " re1",
             "both": " routing-engine both",
+            "": "",
         }[re]
         await self.run_cmd(
             f'request routing-engine execute command '
@@ -269,18 +307,15 @@ class Junos:
         )
         if re in ["re0", "both"]:
             await self.run_cmd(f"file rename re0:{tmp_folder}/{tmp_file_name} {tmp_folder}/re0.{tmp_file_name}")
-            await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", local_path)
+            await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", f"{local_path}/re0.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re0.{tmp_file_name}")
 
         if re in ["re1", "both"]:
             await self.run_cmd(f"file rename re1:{tmp_folder}/{tmp_file_name} {tmp_folder}/re1.{tmp_file_name}")
-            await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", local_path)
+            await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
             return True
+
         if re == "":
-            # await self.run_cmd(
-            #     f'request routing-engine execute command '
-            #     f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
-            # )
-            await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", local_path)
+            await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", f"{local_path}/{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")

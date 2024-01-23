@@ -21,9 +21,9 @@ class Inventory:
     def __init__(self) -> None:
         self.devices: List[Device] = []
 
-    def device(self, name: str) -> Optional[Device]:
+    def device(self, device_id: str) -> Optional[Device]:
         for dev in self.devices:
-            if dev.name == name:
+            if dev.id == device_id:
                 return dev
         else:
             return None
