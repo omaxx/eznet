@@ -67,12 +67,19 @@ def run(
     def device_filter(device: Device) -> bool:
         return devices_id is None or any(fnmatch.fnmatch(device.id, device_id) for device_id in devices_id)
 
+    time_start = datetime.now()
+    job_name = time_start.strftime(JOB_TS_FORMAT)
+    console.print(f"{job_name}: [black on white]job started at {time_start}")
+
     async def main() -> None:
         async def process(device: Device) -> None:
             if device.ssh:
                 async with device.ssh:
                     await device.info.system.info.fetch()
                     await device.info.system.alarms.fetch()
+                    await device.info.system.sw.fetch()
+                    await device.info.system.uptime.fetch()
+                    await device.info.system.coredumps.fetch()
 
         try:
             errors = [ret is not None for ret in await asyncio.gather(*(
@@ -86,11 +93,9 @@ def run(
             console.print()
         finally:
             console.print(tables.inventory.DevStatus(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevSummary(inventory, device_filter=device_filter))
             console.print(tables.inventory.DevAlarms(inventory, device_filter=device_filter))
 
-    time_start = datetime.now()
-    job_name = time_start.strftime(JOB_TS_FORMAT)
-    console.print(f"{job_name}: [black on white]job started at {time_start}")
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

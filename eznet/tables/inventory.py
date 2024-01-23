@@ -41,6 +41,36 @@ class DevStatus(Table):
         super().__init__(main)
 
 
+class DevSummary(Table):
+    @dataclass
+    class Fields(Table.Fields):
+        device: str
+        hostname: str
+        family: str
+        version: str
+        model: str
+        sn: str
+
+    def __init__(
+        self,
+        inventory: Inventory,
+        device_filter: Callable[[Device], bool] = lambda _: True,
+    ) -> None:
+        def main() -> Iterable[Table.Fields]:
+            for device in inventory.devices:
+                if device_filter(device):
+                    yield self.Fields(
+                        device=device.id,
+                        hostname=self.eval(lambda: device.info.system.info[0].hostname),  # type: ignore
+                        family=self.eval(lambda: device.info.system.info[0].sw_family),  # type: ignore
+                        version=self.eval(lambda: device.info.system.info[0].sw_version),  # type: ignore
+                        model=self.eval(lambda: device.info.system.info[0].hw_model),  # type: ignore
+                        sn=self.eval(lambda: device.info.system.info[0].hw_sn),  # type: ignore
+
+                    )
+        super().__init__(main)
+
+
 class DevInterfaces(Table):
     @dataclass
     class Fields(Table.Fields):

@@ -199,4 +199,4 @@ class System:
         self.alarms = Data(Alarm.fetch, device)
         self.sw = Data(SW.fetch, device)
         self.uptime = Data(Uptime.fetch, device)
-        self.coredump = Data(CoreDump.fetch, device)
+        self.coredumps = Data(CoreDump.fetch, device)
