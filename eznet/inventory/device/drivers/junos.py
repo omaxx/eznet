@@ -250,12 +250,12 @@ class Junos:
         tmp_file_name = remote_path.name
         local_file_name = tmp_file_name
         if re in ["re0", "both"]:
-            await self.run_cmd(f"file rename re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}")
+            await self.run_cmd(f"file copy re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}")
             await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", f"{local_path}/re0.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re0.{tmp_file_name}")
 
         if re in ["re1", "both"]:
-            await self.run_cmd(f"file rename re1:{remote_path} {tmp_folder}/re1.{tmp_file_name}")
+            await self.run_cmd(f"file copy re1:{remote_path} {tmp_folder}/re1.{tmp_file_name}")
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
             return True
