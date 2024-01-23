@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, Any, Tuple, Union
+from typing import Optional, Dict, Any, Tuple, Union, Literal
 from pathlib import Path
 import logging
 import re as regexp
@@ -236,7 +236,7 @@ class Junos:
         self,
         remote_path: Union[Path, str],
         local_path: Union[Path, str],
-        re: str = "",
+        re: Literal["re0", "re1", "both", ""] = "",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
@@ -257,24 +257,30 @@ class Junos:
                 + ".tgz"
             )
         tmp_folder = "."
-        if re == "both":
-            await self.run_cmd(
-                f'request routing-engine execute command '
-                f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
-                f' routing-engine both'
-            )
+        re_command = {
+            "re0": " re0",
+            "re1": " re1",
+            "both": " routing-engine both",
+        }[re]
+        await self.run_cmd(
+            f'request routing-engine execute command '
+            f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
+            f'{re_command}'
+        )
+        if re in ["re0", "both"]:
             await self.run_cmd(f"file rename re0:{tmp_folder}/{tmp_file_name} {tmp_folder}/re0.{tmp_file_name}")
             await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", local_path)
             await self.run_cmd(f"file delete {tmp_folder}/re0.{tmp_file_name}")
 
+        if re in ["re1", "both"]:
             await self.run_cmd(f"file rename re1:{tmp_folder}/{tmp_file_name} {tmp_folder}/re1.{tmp_file_name}")
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", local_path)
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
             return True
-        else:
-            await self.run_cmd(
-                f'request routing-engine execute command '
-                f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
-            )
+        if re == "":
+            # await self.run_cmd(
+            #     f'request routing-engine execute command '
+            #     f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
+            # )
             await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", local_path)
             await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
