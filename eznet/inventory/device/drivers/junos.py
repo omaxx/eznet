@@ -42,7 +42,7 @@ class Junos:
         try:
             output_error = output.split("\n")[1].split(": ", 1)
             if output_error[0] == "error":
-                self.logger.error(f"{self}: run_cmd `{cmd}`: ERROR: {output_error[1]}")
+                self.logger.warning(f"{self}: run_cmd `{cmd}`: ERROR: {output_error[1]}")
                 # raise CommandError()
                 return True
         except IndexError:
@@ -81,7 +81,7 @@ class Junos:
             if self.error_in_output(cmd, output):
                 return None
             if error is not None and error != "":
-                self.logger.error(f"{self}: run_shell_cmd: ERROR: {error.strip()}")
+                self.logger.warning(f"{self}: run_shell_cmd: ERROR: {error.strip()}")
                 return None
         except RequestError:
             return None
@@ -106,7 +106,7 @@ class Junos:
             try:
                 command, error, output = output.split("\n", 2)
                 if "error" in error:
-                    self.logger.error(f"{self}: run_pfe_cmd: ERROR: {error}")
+                    self.logger.warning(f"{self}: run_pfe_cmd: ERROR: {error}")
                     return None
             except ValueError:
                 pass
@@ -147,13 +147,13 @@ class Junos:
         try:
             xml = etree.fromstring(output)
         except etree.XMLSyntaxError:
-            self.logger.error(f"{self}: run_xml_cmd: xml parse error")
+            self.logger.warning(f"{self}: run_xml_cmd: xml parse error")
             return None
 
         # TODO:
         # Verify xml for errors
         # if :
-        #     self.logger.error(f"{self}: junos: run_xml_cmd: xml parse error")
+        #     self.logger.warning(f"{self}: junos: run_xml_cmd: xml parse error")
         #     return None
 
         return xml
@@ -174,7 +174,7 @@ class Junos:
 
         json_output = json.loads(output)
         if not isinstance(json_output, dict):
-            self.logger.error(f"{self}: run_json_cmd: json parse error")
+            self.logger.warning(f"{self}: run_json_cmd: json parse error")
             return None
 
         return json_output
@@ -223,13 +223,13 @@ class Junos:
                 self.logger.info(f"{self}: ssh shell: commit successfull")
                 return True
             elif mode == "#":
-                self.logger.error(
+                self.logger.warning(
                     f"{self}: ssh shell: commit failed, going to rollback"
                 )
                 await send("rollback")
                 await send("exit")
         else:
-            self.logger.error(f"{self}: ssh shell: could not enter to config mode")
+            self.logger.warning(f"{self}: ssh shell: could not enter to config mode")
         return False
 
     async def download(self, remote_path: Union[Path, str], local_path: Union[Path, str]) -> bool:
