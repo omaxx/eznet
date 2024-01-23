@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, Dict, Any, Tuple, Union
 from pathlib import Path
 import logging
-import re
+import re as regexp
 import json
 
 from lxml import etree
@@ -194,7 +194,7 @@ class Junos:
         stdin.write("\n")
         while True:
             line = await stdout.readline()
-            prompt_match = re.match(r"\w+@[\w.-]+>", line)
+            prompt_match = regexp.match(r"\w+@[\w.-]+>", line)
             if prompt_match:
                 prompt = prompt_match.group(0)[:-1]
                 break
@@ -232,7 +232,12 @@ class Junos:
             self.logger.warning(f"{self}: ssh shell: could not enter to config mode")
         return False
 
-    async def download(self, remote_path: Union[Path, str], local_path: Union[Path, str]) -> bool:
+    async def download_tar(
+        self,
+        remote_path: Union[Path, str],
+        local_path: Union[Path, str],
+        re: str = "",
+    ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
         if isinstance(remote_path, str):
@@ -251,13 +256,25 @@ class Junos:
                 .replace("*", "")
                 + ".tgz"
             )
-        await self.run_cmd(
-            f'request routing-engine execute command "tar -czf ./{tmp_file_name} {remote_path}" routing-engine both'
-        )
-        await self.run_cmd(f"file copy re0:./{tmp_file_name} ./re0.{tmp_file_name}")
-        await self.run_cmd(f"file copy re1:./{tmp_file_name} ./re1.{tmp_file_name}")
-        await self.ssh.download(f"re0.{tmp_file_name}", local_path)
-        await self.ssh.download(f"re1.{tmp_file_name}", local_path)
-        await self.run_cmd(f"file delete ./re0.{tmp_file_name}")
-        await self.run_cmd(f"file delete ./re1.{tmp_file_name}")
-        return True
+        tmp_folder = "."
+        if re == "both":
+            await self.run_cmd(
+                f'request routing-engine execute command '
+                f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
+                f' routing-engine both'
+            )
+            await self.run_cmd(f"file rename re0:{tmp_folder}/{tmp_file_name} {tmp_folder}/re0.{tmp_file_name}")
+            await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", local_path)
+            await self.run_cmd(f"file delete {tmp_folder}/re0.{tmp_file_name}")
+
+            await self.run_cmd(f"file rename re1:{tmp_folder}/{tmp_file_name} {tmp_folder}/re1.{tmp_file_name}")
+            await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", local_path)
+            await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
+            return True
+        else:
+            await self.run_cmd(
+                f'request routing-engine execute command '
+                f'"tar -czf {tmp_folder}/{tmp_file_name} {remote_path}"'
+            )
+            await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", local_path)
+            await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
