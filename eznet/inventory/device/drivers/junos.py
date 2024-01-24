@@ -262,7 +262,6 @@ class Junos:
 
         if re == "":
             await self.ssh.download(f"{remote_path}", f"{local_path}/{local_file_name}")
-            await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
 
     async def download_tar(
         self,
