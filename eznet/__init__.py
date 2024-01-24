@@ -1,4 +1,3 @@
-from . import device
+from .inventory import Inventory, Device
 
-
-__all__ = ["device"]
+__all__ = ["Inventory", "Device"]

@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import eznet
-from eznet.data import Data
+from dataclasses import dataclass, field
 
+import eznet
 
 from .system import System
 from .chassis import Chassis
-from .interfaces import Interface
 
 
 class Device:
-    def __init__(self, device: eznet.device.Device):
+    def __init__(self, device: eznet.Device) -> None:
         self.system = System(device)
         self.chassis = Chassis(device)
-        self.interfaces = Data(Interface.fetch, device)

@@ -1,10 +1,7 @@
-from __future__ import annotations
-
+from dataclasses import dataclass
 from typing import Optional
 
-from attrs import define
 
-
-@define
+@dataclass
 class System:
     hostname: Optional[str] = None

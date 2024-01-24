@@ -1,13 +1,13 @@
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 from rich.console import Console
 from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 from rich.theme import Theme
 
-from eznet.device import Device
+from eznet import Device
 
 MODULE = __name__.split(".")[0]
 
@@ -29,19 +29,23 @@ theme = Theme(
     }
 )
 
-console = Console(
-    emoji=False,
-    markup=False,
-    theme=theme,
-)
-
 
 def config_logger(
     level: int,
     file: Union[None, str, Path] = None,
+    force_terminal: Optional[bool] = None,
+    width: Optional[int] = None,
 ) -> None:
     logger = logging.getLogger(MODULE)
     logger.setLevel(level)
+
+    console = Console(
+        emoji=False,
+        markup=False,
+        theme=theme,
+        force_terminal=force_terminal,
+        width=width,
+    )
 
     logger.addHandler(
         RichHandler(

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
-from attrs import define
 from lxml.etree import _Element  # noqa
 
-from eznet.parser.xml import text, number, timestamp
+from eznet.parsers.xml import text, number, timestamp
 import eznet
 from eznet.data import Data
 
 
-@define
+@dataclass
 class Alarm:
     ts: Optional[datetime]
     cls: Optional[str]
@@ -28,7 +28,7 @@ class Alarm:
         )
 
     @staticmethod
-    async def fetch(device: eznet.device.Device) -> Optional[List[Alarm]]:
+    async def fetch(device: eznet.Device) -> Optional[List[Alarm]]:
         xml = await device.junos.run_xml_cmd(
             "show chassis alarms",
         )
@@ -39,9 +39,10 @@ class Alarm:
                     Alarm.from_xml(alarm)
                     for alarm in alarm_info.findall("alarm-detail")
                 ]
+        return None
 
 
-@define
+@dataclass
 class Port:
     cable_type: Optional[str]
     fiber_mode: Optional[str]
@@ -56,7 +57,7 @@ class Port:
         )
 
 
-@define
+@dataclass
 class PIC:
     state: Optional[str]
     type: Optional[str]
@@ -70,7 +71,7 @@ class PIC:
         )
 
 
-@define
+@dataclass
 class FPC:
     state: Optional[str]
     comment: Optional[str]
@@ -94,20 +95,22 @@ class FPC:
             memory_buffer_utilization=number(fpc, "memory-buffer-utilization"),
             description=text(fpc, "description"),
             pics={
-                number(pic, "pic-slot"): PIC.from_xml(pic)
+                pic_slot: PIC.from_xml(pic)
                 for pic in fpc.findall("pic")
+                if (pic_slot := number(pic, "pic-slot")) is not None
             },
         )
 
     @staticmethod
-    async def fetch(device: eznet.device.Device, get_ports: bool = False) -> Optional[Dict[int, FPC]]:
+    async def fetch(device: eznet.Device, get_ports: bool = False) -> Optional[Dict[int, FPC]]:
         show_chassis_fpc = await device.junos.run_xml_cmd("show chassis fpc pic-status")
         if show_chassis_fpc is not None:
             fpc_info = show_chassis_fpc.find("fpc-information")
             if fpc_info is not None:
                 fpc_dict = {
-                    number(fpc, "slot"): FPC.from_xml(fpc)
+                    fpc_slot: FPC.from_xml(fpc)
                     for fpc in fpc_info.findall("fpc")
+                    if (fpc_slot := number(fpc, "slot")) is not None
                 }
 
                 if not get_ports:
@@ -120,35 +123,37 @@ class FPC:
                             )
                             if xml is not None:
                                 pic.ports = {
-                                    number(port, "port-number"): Port.from_xml(port)
+                                    port_number: Port.from_xml(port)
                                     for port in xml.findall("fpc-information/fpc/pic-detail/port-information/port")
+                                    if (port_number := number(port, "port-number")) is not None
                                 }
                     return fpc_dict
+        return None
 
 
-@define
+@dataclass
 class FW:
     fw: Dict[str, str]
 
     @staticmethod
     def from_xml(xml: _Element) -> FW:
         fw = {
-            text(e, "type"): text(e, "firmware-version")
+            fw_type: text(e, "firmware-version")
             for e in xml.findall("firmware")
+            if (fw_type := text(e, "type")) is not None
         }
-        if "ONIE/DIAG" in fw:
+        if "ONIE/DIAG" in fw and (onie_diag := fw.pop("ONIE/DIAG")) is not None:
             try:
-                fw["ONIE"], fw["DIAG"] = fw.pop("ONIE/DIAG").split("/")
+                fw["ONIE"], fw["DIAG"] = onie_diag.split("/")
             except ValueError:
                 pass
-        fw = {key: value.strip() for key, value in fw.items() if value is not None}
 
         return FW(
-            fw=fw,
+            fw={key: value.strip() for key, value in fw.items() if value is not None},
         )
 
     @staticmethod
-    async def fetch(device: eznet.device.Device) -> Optional[Dict[int, FW]]:
+    async def fetch(device: eznet.Device) -> Optional[Dict[int, FW]]:
         show_chassis_fw = await device.junos.run_xml_cmd("show chassis firmware")
         if show_chassis_fw is not None:
             fw_info = show_chassis_fw.find("firmware-information/chassis")
@@ -159,9 +164,10 @@ class FW:
                     for e in fw_info.findall("chassis-module")
                     if "FPC " in text(e, "name")
                 }
+        return None
 
 
-@define
+@dataclass
 class RE:
     model: Optional[str]
     status: Optional[str]
@@ -180,20 +186,21 @@ class RE:
         )
 
     @staticmethod
-    async def fetch(device: eznet.device.Device) -> Optional[Dict[int, RE]]:
+    async def fetch(device: eznet.Device) -> Optional[Dict[int, RE]]:
         show_chassis_re = await device.junos.run_xml_cmd("show chassis routing-engine")
         if show_chassis_re is not None:
             re_information = show_chassis_re.find("route-engine-information")
             if re_information is not None:
                 return {
-                    number(e, "slot"):
-                    RE.from_xml(e) for e in re_information.findall("route-engine")
-                    if number(e, "slot") is not None
+                    slot: RE.from_xml(e)
+                    for e in re_information.findall("route-engine")
+                    if (slot := number(e, "slot")) is not None
                 }
+        return None
 
 
 class Chassis:
-    def __init__(self, device: eznet.device.Device):
+    def __init__(self, device: eznet.Device):
         self.fpc = Data(FPC.fetch, device)
         self.re = Data(RE.fetch, device)
         self.fw = Data(FW.fetch, device)
