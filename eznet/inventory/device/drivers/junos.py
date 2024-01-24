@@ -235,13 +235,19 @@ class Junos:
     async def download(
         self,
         remote_path: Union[Path, str],
-        local_path: Union[Path, str],
+        local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
+        host: bool = False,
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
         if isinstance(remote_path, str):
             remote_path = Path(remote_path)
+        if host:
+            try:
+                remote_path = "/hostvar" / remote_path.relative_to("/var")
+            except ValueError:
+                return False
         if isinstance(local_path, str):
             local_path = Path(local_path)
         if not local_path.exists():
@@ -266,7 +272,7 @@ class Junos:
     async def download_tar(
         self,
         remote_path: Union[Path, str],
-        local_path: Union[Path, str],
+        local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
