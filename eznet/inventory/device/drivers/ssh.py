@@ -5,7 +5,6 @@ from types import TracebackType
 
 import asyncssh
 import asyncio
-from asyncio.exceptions import CancelledError
 import os
 import logging
 import socket
@@ -248,13 +247,21 @@ class SSH:
 
             try:
                 self.requests.append(request)
-                await asyncssh.scp(
-                    (self.connection, src),
-                    dst,
-                    progress_handler=progress_handler,
-                    preserve=True,
-                    recurse=True,
-                )
+                # FIXME: make junos download interruptible
+                task = asyncio.get_running_loop().create_task(nothing())
+
+                async def download():
+                    try:
+                        await asyncssh.scp(
+                            (self.connection, src),
+                            dst,
+                            progress_handler=progress_handler,
+                            preserve=True,
+                            recurse=True,
+                        )
+                    finally:
+                        task.cancel()
+                await asyncio.gather(task, download())
             except (
                 asyncssh.SFTPError,
                 asyncssh.SFTPFailure,
@@ -404,3 +411,11 @@ def create_session_factory(request: CmdRequest) -> Type[asyncssh.SSHClientSessio
                 request.stdout += data
 
     return SSHClientSession
+
+
+async def nothing():
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except asyncio.exceptions.CancelledError:
+        pass
