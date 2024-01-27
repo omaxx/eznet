@@ -247,8 +247,8 @@ class SSH:
 
             try:
                 self.requests.append(request)
-                # FIXME: make junos download interruptible
-                task = asyncio.get_running_loop().create_task(nothing())
+                # workaround for avoiding async.scp stucks during cancel
+                done = asyncio.Event()
 
                 async def download():
                     try:
@@ -260,8 +260,8 @@ class SSH:
                             recurse=True,
                         )
                     finally:
-                        task.cancel()
-                await asyncio.gather(task, download())
+                        done.set()
+                await asyncio.gather(download(), done.wait())
             except (
                 asyncssh.SFTPError,
                 asyncssh.SFTPFailure,
@@ -323,13 +323,21 @@ class SSH:
 
             try:
                 self.requests.append(request)
-                await asyncssh.scp(
-                    src,
-                    (self.connection, dst),
-                    progress_handler=progress_handler,
-                    preserve=True,
-                    recurse=True,
-                )
+                # workaround for avoiding async.scp stucks during cancel
+                done = asyncio.Event()
+
+                async def upload():
+                    try:
+                        await asyncssh.scp(
+                            src,
+                            (self.connection, dst),
+                            progress_handler=progress_handler,
+                            preserve=True,
+                            recurse=True,
+                        )
+                    finally:
+                        done.set()
+                await asyncio.gather(upload(), done.wait())
             except (
                 asyncssh.SFTPError,
                 asyncssh.SFTPFailure,
@@ -418,4 +426,4 @@ async def nothing():
         while True:
             await asyncio.sleep(3600)
     except asyncio.exceptions.CancelledError:
-        pass
+        raise
