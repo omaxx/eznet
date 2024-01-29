@@ -419,11 +419,3 @@ def create_session_factory(request: CmdRequest) -> Type[asyncssh.SSHClientSessio
                 request.stdout += data
 
     return SSHClientSession
-
-
-async def nothing():
-    try:
-        while True:
-            await asyncio.sleep(3600)
-    except asyncio.exceptions.CancelledError:
-        raise
