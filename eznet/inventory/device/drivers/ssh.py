@@ -168,12 +168,24 @@ class SSH:
         async with execute_semaphore[asyncio.get_running_loop()]:
             try:
                 chan, session = await self.connection.create_session(
-                    create_session_factory(request), cmd, encoding=DEFAULT_ENCODING,
+                    create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
                 )
-                self.logger.info(f"{self}: execute `{cmd}`: waiting for reply")
-                await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+                self.logger.info(f"{self}: execute `{cmd}`")
+                done = asyncio.Event()
+
+                async def wait():
+                    try:
+                        await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+                    finally:
+                        done.set()
+
+                await asyncio.gather(
+                    wait(),
+                    done.wait(),
+                )
 
             except (
+                TimeoutError,
                 asyncio.TimeoutError,
                 asyncssh.Error,
             ) as err:
@@ -183,7 +195,7 @@ class SSH:
                 self.error = f"{err.__class__.__name__}"
                 raise RequestError(self.error)
             else:
-                self.logger.info(
+                self.logger.debug(
                     f"{self}: execute `{cmd}`: "
                     f"got reply: {len(request.stdout)} bytes / {len(request.stderr)} bytes"
                 )
@@ -410,12 +422,25 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
     return SSHClient
 
 
-def create_session_factory(request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
+def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
     class SSHClientSession(asyncssh.SSHClientSession[str]):
+        def __init__(self):
+            self.time = time()
+            self.rcvd: int = 0
+
         def data_received(self, data: str, datatype: asyncssh.DataType) -> None:
             if datatype == asyncssh.EXTENDED_DATA_STDERR:
                 request.stderr += data
             else:
                 request.stdout += data
+            current_time = time()
+            if current_time - self.time > 10:
+                ssh.logger.info(
+                    f"{ssh}: execute `{request.cmd}`: received "
+                    f"{len(request.stdout) + len(request.stderr):,} bytes",
+                )
+
+                self.time = current_time
+                self.rcvd = len(request.stdout) + len(request.stderr)
 
     return SSHClientSession
