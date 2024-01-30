@@ -15,7 +15,7 @@ from pathlib import Path
 from .base import *
 
 DEFAULT_CONNECT_TIMEOUT = 30
-DEFAULT_CMD_TIMEOUT = 15
+DEFAULT_CMD_TIMEOUT = 60
 DEFAULT_KEEPALIVE = 5
 DEFAULT_RECONNECT_TIMEOUT = 15
 DEFAULT_ENCODING = "latin-1"
@@ -24,6 +24,8 @@ MAX_SIMULTANEOUS_CONNECTIONS = 64
 MAX_SIMULTANEOUS_EXECUTIONS = 64
 MAX_SIMULTANEOUS_DOWNLOADS = 2
 MAX_SIMULTANEOUS_UPLOADS = 2
+
+LONG_REQUEST_LOG_TIMEOUT = 10
 
 MODULE = __name__.split(".")[0]
 
@@ -168,12 +170,34 @@ class SSH:
         async with execute_semaphore[asyncio.get_running_loop()]:
             try:
                 chan, session = await self.connection.create_session(
-                    create_session_factory(request), cmd, encoding=DEFAULT_ENCODING,
+                    create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
                 )
-                self.logger.info(f"{self}: execute `{cmd}`: waiting for reply")
-                await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+                self.logger.info(f"{self}: execute `{cmd}`")
+                # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+
+                done = asyncio.Event()
+
+                async def wait():
+                    try:
+                        await done.wait()
+                    except asyncio.CancelledError:
+                        chan.abort()
+                        raise
+
+                async def run_cmd():
+                    try:
+                        await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+                    finally:
+                        done.set()
+
+                await asyncio.gather(
+                    run_cmd(),
+                    wait(),
+                    # done.wait(),
+                )
 
             except (
+                TimeoutError,
                 asyncio.TimeoutError,
                 asyncssh.Error,
             ) as err:
@@ -182,8 +206,13 @@ class SSH:
                 )
                 self.error = f"{err.__class__.__name__}"
                 raise RequestError(self.error)
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
-                self.logger.info(
+                self.logger.debug(
                     f"{self}: execute `{cmd}`: "
                     f"got reply: {len(request.stdout)} bytes / {len(request.stderr)} bytes"
                 )
@@ -234,7 +263,7 @@ class SSH:
                     t0 = t1 = time()
                     r1 = 0
                     request.speed = speed
-                elif t_delta > 10:
+                elif t_delta > LONG_REQUEST_LOG_TIMEOUT:
                     received_part = received / total if total > 0 else 1
                     speed = (received - r1) / t_delta
                     self.logger.info(
@@ -269,6 +298,11 @@ class SSH:
                 self.logger.error(
                     f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
                 )
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
                 self.logger.info(f"{self}: download `{src}` --> `{dst}`: DONE")
             finally:
@@ -310,7 +344,7 @@ class SSH:
                     t0 = t1 = time()
                     r1 = 0
                     request.speed = speed
-                elif t_delta > 10:
+                elif t_delta > LONG_REQUEST_LOG_TIMEOUT:
                     received_part = received / total if total > 0 else 1
                     speed = (received - r1) / t_delta
                     self.logger.info(
@@ -345,6 +379,11 @@ class SSH:
                 self.logger.error(
                     f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
                 )
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
                 self.logger.info(f"{self}: upload `{src}` --> `{dst}`: DONE")
             finally:
@@ -410,20 +449,25 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
     return SSHClient
 
 
-def create_session_factory(request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
+def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
     class SSHClientSession(asyncssh.SSHClientSession[str]):
+        def __init__(self):
+            self.time = time()
+            self.rcvd: int = 0
+
         def data_received(self, data: str, datatype: asyncssh.DataType) -> None:
             if datatype == asyncssh.EXTENDED_DATA_STDERR:
                 request.stderr += data
             else:
                 request.stdout += data
+            current_time = time()
+            if current_time - self.time > LONG_REQUEST_LOG_TIMEOUT:
+                ssh.logger.info(
+                    f"{ssh}: execute `{request.cmd}`: received "
+                    f"{len(request.stdout) + len(request.stderr):,} bytes",
+                )
+
+                self.time = current_time
+                self.rcvd = len(request.stdout) + len(request.stderr)
 
     return SSHClientSession
-
-
-async def nothing():
-    try:
-        while True:
-            await asyncio.sleep(3600)
-    except asyncio.exceptions.CancelledError:
-        raise
