@@ -1,22 +1,14 @@
 setuptools
 
-typing_extensions
-attrs
-types-attrs
-PyYAML
-types-PyYAML
+pyyaml
+types-PyYaml
+marshmallow
+marshmallow-dataclass
 lxml
 lxml-stubs
-jsonnet
-cattrs
 
-influxdb-client[ciso]
+asyncssh
 
 click
 rich
 pathlib3x
-
-asyncssh
-
-pytest
-pytest-asyncio

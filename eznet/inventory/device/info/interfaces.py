@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
-from attrs import define
-from lxml.etree import _Element
+from lxml.etree import _Element  # noqa
 
-from eznet.parser.xml import text, number, timestamp
+from eznet.parsers.xml import text, number, timestamp
 import eznet
 
 
-@define
+@dataclass
 class AF:
     address: Optional[str]
     network: Optional[str]
@@ -23,7 +23,7 @@ class AF:
         )
 
 
-@define
+@dataclass
 class UnitTraffic:
     input_packets: Optional[int]
     output_packets: Optional[int]
@@ -36,7 +36,7 @@ class UnitTraffic:
         )
 
 
-@define
+@dataclass
 class Unit:
     description: str
     family: Dict[str, AF]
@@ -54,7 +54,7 @@ class Unit:
         )
 
 
-@define
+@dataclass
 class Traffic:
     input_bps: int
     input_pps: int
@@ -71,7 +71,7 @@ class Traffic:
         )
 
 
-@define
+@dataclass
 class Interface:
     admin: Optional[str]
     oper: Optional[str]
@@ -100,7 +100,7 @@ class Interface:
         )
 
     @classmethod
-    async def fetch(cls, device: eznet.device.Device) -> Optional[Dict[str, Interface]]:
+    async def fetch(cls, device: eznet.Device) -> Optional[Dict[str, Interface]]:
         show_interfaces = await device.junos.run_xml_cmd("show interfaces")
         if show_interfaces is not None:
             interface_information = show_interfaces.find("interface-information")

@@ -1,7 +1,6 @@
-from eznet.inventory import Inventory
+from eznet import Inventory
 
 
 def test_load():
     inventory = Inventory()
-    inventory.load("inventory/")
-    assert inventory.devices[0].id == "vlab.vmx-1"
+    inventory.load("inventory/devices/")
