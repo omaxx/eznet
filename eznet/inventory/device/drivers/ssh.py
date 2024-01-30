@@ -25,6 +25,8 @@ MAX_SIMULTANEOUS_EXECUTIONS = 64
 MAX_SIMULTANEOUS_DOWNLOADS = 2
 MAX_SIMULTANEOUS_UPLOADS = 2
 
+LONG_REQUEST_LOG_TIMEOUT = 10
+
 MODULE = __name__.split(".")[0]
 
 connection_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
@@ -171,17 +173,27 @@ class SSH:
                     create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
+                # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+
                 done = asyncio.Event()
 
                 async def wait():
+                    try:
+                        await done.wait()
+                    except asyncio.CancelledError:
+                        chan.abort()
+                        raise
+
+                async def run_cmd():
                     try:
                         await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
                     finally:
                         done.set()
 
                 await asyncio.gather(
+                    run_cmd(),
                     wait(),
-                    done.wait(),
+                    # done.wait(),
                 )
 
             except (
@@ -194,6 +206,11 @@ class SSH:
                 )
                 self.error = f"{err.__class__.__name__}"
                 raise RequestError(self.error)
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
                 self.logger.debug(
                     f"{self}: execute `{cmd}`: "
@@ -246,7 +263,7 @@ class SSH:
                     t0 = t1 = time()
                     r1 = 0
                     request.speed = speed
-                elif t_delta > 10:
+                elif t_delta > LONG_REQUEST_LOG_TIMEOUT:
                     received_part = received / total if total > 0 else 1
                     speed = (received - r1) / t_delta
                     self.logger.info(
@@ -281,6 +298,11 @@ class SSH:
                 self.logger.error(
                     f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
                 )
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
                 self.logger.info(f"{self}: download `{src}` --> `{dst}`: DONE")
             finally:
@@ -322,7 +344,7 @@ class SSH:
                     t0 = t1 = time()
                     r1 = 0
                     request.speed = speed
-                elif t_delta > 10:
+                elif t_delta > LONG_REQUEST_LOG_TIMEOUT:
                     received_part = received / total if total > 0 else 1
                     speed = (received - r1) / t_delta
                     self.logger.info(
@@ -357,6 +379,11 @@ class SSH:
                 self.logger.error(
                     f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
                 )
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
             else:
                 self.logger.info(f"{self}: upload `{src}` --> `{dst}`: DONE")
             finally:
@@ -434,7 +461,7 @@ def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHCl
             else:
                 request.stdout += data
             current_time = time()
-            if current_time - self.time > 10:
+            if current_time - self.time > LONG_REQUEST_LOG_TIMEOUT:
                 ssh.logger.info(
                     f"{ssh}: execute `{request.cmd}`: received "
                     f"{len(request.stdout) + len(request.stderr):,} bytes",
