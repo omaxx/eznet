@@ -72,20 +72,20 @@ class Junos:
         re: Literal["re0", "re1", "local", "other", "master", "backup", "both"],
         cli: bool = False,
         timeout: int = DEFAULT_CMD_TIMEOUT,
-    ):
+    ) -> Optional[str]:
         if self.ssh is None:
             return None
         if re in ["re0", "re1"]:
-            pass
+            cmd_re: str = re
         elif re in ["re1", "local", "other", "master", "backup", "both"]:
-            re = f"routing-engine {re}"
+            cmd_re = f"routing-engine {re}"
         else:
             raise TypeError()
         if cli:
             cmd = f"cli -c '{cmd}'"
         try:
             output, _ = await self.ssh.execute(
-                f'request routing-engine execute {re} command "{cmd}"',
+                f'request routing-engine execute {cmd_re} command "{cmd}"',
                 timeout=timeout,
             )
             if self.error_in_output(cmd, output):
@@ -293,10 +293,11 @@ class Junos:
             await self.run_cmd(f"file copy re1:{remote_path} {tmp_folder}/re1.{tmp_file_name}", timeout=300)
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
-            return True
 
         if re == "":
             await self.ssh.download(f"{remote_path}", f"{local_path}/{local_file_name}")
+
+        return True
 
     async def download_tar(
         self,
@@ -355,8 +356,9 @@ class Junos:
             )
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
-            return True
 
         if re == "":
             await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", f"{local_path}/{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
+
+        return True

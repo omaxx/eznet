@@ -201,6 +201,6 @@ class RE:
 
 class Chassis:
     def __init__(self, device: eznet.Device):
-        self.fpc = Data(FPC.fetch, device)
-        self.re = Data(RE.fetch, device)
-        self.fw = Data(FW.fetch, device)
+        self.fpc = Data(device, FPC.fetch)
+        self.re = Data(device, RE.fetch)
+        self.fw = Data(device, FW.fetch)

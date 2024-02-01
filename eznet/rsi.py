@@ -31,10 +31,10 @@ def cli_commands(device: Device) -> Iterable[str]:
         "show chassis fpc pic-status",
         *([
             f"show chassis pic fpc-slot {fpc_number} pic-slot {pic_number}"
-            for fpc_number, fpc in device.info.chassis.fpc[0].items()
+            for fpc_number, fpc in device.info.chassis.fpc().items()
             for pic_number in fpc.pics.keys()
 
-        ] if len(device.info.chassis.fpc) > 0 else []),
+        ] if device.info.chassis.fpc else []),
         "show chassis satellite",
         "show chassis satellite detail",
         "show chassis satellite software",
@@ -78,7 +78,7 @@ def host_commands(device: Device) -> Iterable[str]:
             "date +'%Y-%m-%d %H:%M:%S'",
             "ps -elf",
             "free -m",
-          ] if device.info.system.info[0].sw_family in ["junos-qfx"] else []),
+          ] if device.info.system.info and device.info.system.info().sw_family in ["junos-qfx"] else []),
     ]
     # commands: List[str] = []
     yield from commands
@@ -163,7 +163,7 @@ async def process(
             print(f"{' ' + cmd + ' ':^^120}", file=io)
             print(file=io)
 
-    for fpc_number in device.info.chassis.fpc[0].keys():
+    for fpc_number in device.info.chassis.fpc().keys():
         with open(job_path / f"{device.id}.fpc{fpc_number}", "w") as io:
             for cmd in pfe_commands(device):
                 print(f"{' ' + cmd + ' ':=^120}", file=io)

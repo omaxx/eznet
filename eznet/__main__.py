@@ -49,8 +49,6 @@ def run(
     error_if_all: bool = True,
     error_if_any: bool = False,
 ) -> None:
-    sleep(1)  # FIXME: workaround for PY-65984
-
     console = Console(
         force_terminal=force_terminal,
         width=width,
@@ -80,21 +78,26 @@ def run(
                     await device.info.system.sw.fetch()
                     await device.info.system.uptime.fetch()
                     await device.info.system.coredumps.fetch()
+                    await device.info.interfaces.fetch()
 
         try:
             errors = [ret is not None for ret in await asyncio.gather(*(
                 process(device) for device in inventory.devices if device_filter(device)
             ), return_exceptions=True)]
+
             if error_if_all and all(errors):
                 raise SystemExit(1)
             if error_if_any and any(errors):
                 raise SystemExit(2)
+
         except KeyboardInterrupt:
             console.print()
+
         finally:
             console.print(tables.inventory.DevStatus(inventory, device_filter=device_filter))
             console.print(tables.inventory.DevSummary(inventory, device_filter=device_filter))
             console.print(tables.inventory.DevAlarms(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevInterfaces(inventory, device_filter=device_filter))
 
     try:
         asyncio.run(main())

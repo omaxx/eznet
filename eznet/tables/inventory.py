@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Tuple, Callable
 
-from eznet.table import Table
+from eznet.table import Table, get
 from eznet import Inventory, Device
 from eznet import tables
 
@@ -29,13 +29,13 @@ class DevStatus(Table):
                 if device_filter(device):
                     yield self.Fields(
                         device=device.id,
-                        ssh_ip=self.eval(lambda: device.ssh.ip),  # type: ignore
-                        ssh_user=self.eval(lambda: device.ssh.user_name),  # type: ignore
-                        ssh_error=self.eval(lambda: device.ssh.error, None),  # type: ignore
-                        info_hostname=self.eval(
-                            lambda: device.info.system.info[0].hostname,
+                        ssh_ip=get(lambda: device.ssh.ip),  # type: ignore
+                        ssh_user=get(lambda: device.ssh.user_name),  # type: ignore
+                        ssh_error=get(lambda: device.ssh.error, None),  # type: ignore
+                        info_hostname=get(
+                            lambda: device.info.system.info().hostname,
                             device.name,
-                            lambda v, r: r in v,
+                            lambda v, r: r.lower() in v.lower(),
                         ),  # type: ignore
                     )
         super().__init__(main)
@@ -61,11 +61,11 @@ class DevSummary(Table):
                 if device_filter(device):
                     yield self.Fields(
                         device=device.id,
-                        hostname=self.eval(lambda: device.info.system.info[0].hostname),  # type: ignore
-                        family=self.eval(lambda: device.info.system.info[0].sw_family),  # type: ignore
-                        version=self.eval(lambda: device.info.system.info[0].sw_version),  # type: ignore
-                        model=self.eval(lambda: device.info.system.info[0].hw_model),  # type: ignore
-                        sn=self.eval(lambda: device.info.system.info[0].hw_sn),  # type: ignore
+                        hostname=get(lambda: device.info.system.info().hostname),  # type: ignore
+                        family=get(lambda: device.info.system.info().sw_family),  # type: ignore
+                        version=get(lambda: device.info.system.info().sw_version),  # type: ignore
+                        model=get(lambda: device.info.system.info().hw_model),  # type: ignore
+                        sn=get(lambda: device.info.system.info().hw_sn),  # type: ignore
 
                     )
         super().__init__(main)

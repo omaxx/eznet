@@ -4,10 +4,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable, Tuple
 
-from eznet.table import Table
+from eznet.table import Table, get
 from eznet import Inventory, Device
 
 __all__ = ["Interfaces", "Members"]
+
+
+def interface_state(device: Device, interface_name: str) -> str:
+    interfaces_info = device.info.interfaces()
+    if interface_name not in interfaces_info:
+        return "absent"
+    if interfaces_info[interface_name].admin == "down":
+        return "disabled"
+    return interfaces_info[interface_name].oper
 
 
 class Members(Table):
@@ -15,13 +24,21 @@ class Members(Table):
     class Fields(Table.Fields):
         member: str
         member_state: str
+        info_peer_device: str
+        vars_peer_device: str
+        info_peer_interface: str
+        vars_peer_interface: str
 
     def __init__(self, inventory: Inventory, device: Device, interface_name: str) -> None:
         def main() -> Iterable[Members.Fields]:
             for member_name, member in device.vars.interfaces[interface_name].members.items():
                 yield self.Fields(
                     member=member_name,
-                    member_state=self.eval(lambda: device.info.interfaces[0][member_name].state),  # type: ignore
+                    member_state=get(lambda: interface_state(device, member_name), "up"),  # type: ignore
+                    vars_peer_device=get(lambda: member.peer.device),
+                    info_peer_device=get(ref=lambda: member.peer.device),  # type: ignore
+                    vars_peer_interface=get(lambda: member.peer.interface),
+                    info_peer_interface=get(ref=lambda: member.peer.interface),  # type: ignore
                 )
         super().__init__(main)
 
@@ -39,7 +56,7 @@ class Interfaces(Table):
             for interface_name, interface in device.vars.interfaces.items():
                 yield self.Fields(
                     interface=interface_name,
-                    interface_state=self.eval(lambda: device.info.interfaces[0][interface_name].state),  # type: ignore
+                    interface_state=get(lambda: interface_state(device, interface_name), "up"),  # type: ignore
                 ), Members(inventory, device, interface_name)
         super().__init__(main)
 
@@ -54,12 +71,12 @@ class Alarms(Table):
 
     def __init__(self, inventory: Inventory, device: Device):
         def main() -> Iterable[Alarms.Fields]:
-            if len(device.info.system.alarms) == 0:
+            if not device.info.system.alarms:
                 return
-            for alarm in device.info.system.alarms[0]:
+            for alarm in device.info.system.alarms():
                 yield self.Fields(
                     ts=alarm.ts,
-                    cls=self.eval(alarm.cls, ["Major"], lambda v, r: v not in r),
+                    cls=get(alarm.cls, ["Major"], lambda v, r: v not in r),
                     description=alarm.description,
                     type=alarm.type,
                 )

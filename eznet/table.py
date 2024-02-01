@@ -10,6 +10,8 @@ from enum import Enum, auto
 from rich.console import RichCast
 from rich.table import Table as RTable
 from rich.text import Text
+from rich import box
+from eznet.data import DataError
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class Value(Generic[V]):
         FAIL = auto()
         NO_REF = auto()
         NO_DATA = auto()
-        NO_VARS = auto()
+        # NO_VARS = auto()
         NO_INFO = auto()
         VALIDATE_ERROR = auto()
 
@@ -36,8 +38,9 @@ class Value(Generic[V]):
 
     STYLE = {
         Status.PASS: "green",
-        Status.NO_VARS: "italic",
+        # Status.NO_VARS: "italic",
         Status.NO_INFO: "bold red italic",
+        Status.NO_DATA: "italic",
         Status.FAIL: "bold red reverse"
     }
 
@@ -52,6 +55,38 @@ class Value(Generic[V]):
             return Text(f"{self.status}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
         else:
             return Text(f"{self.status}: {self.v}", style=self.STYLE.get(self.status, self.DEFAULT_STYLE))
+
+
+def get(
+    value: Union[Callable[[], V], V, NO] = NO.NE,
+    ref: Union[Callable[[], Any], Any] = NO.NE,
+    func: Callable[[V, Any], bool] = lambda v, r: v == r,
+) -> Union[V, Value[V]]:
+    if value == NO.NE:
+        if ref == NO.NE:
+            return Value(NO.NE, Value.Status.NO_DATA)
+        else:
+            return Value(NO.NE, Value.Status.NO_INFO)
+    if callable(value):
+        try:
+            value = value()
+        except:  # noqa:
+            if ref == NO.NE:
+                return Value(NO.NE, Value.Status.NO_DATA)
+            else:
+                return Value(NO.NE, Value.Status.NO_INFO)
+    if ref == NO.NE:
+        return value
+    if callable(ref):
+        try:
+            ref = ref()
+        except:  # noqa:
+            return Value(value, Value.Status.NO_REF)
+    try:
+        return Value(value, (Value.Status.FAIL, Value.Status.PASS)[func(value, ref)])
+    except Exception as err:
+        logger.error(f"table: error {err} during validate {func} of {value}, {ref}")
+        return Value(value, Value.Status.VALIDATE_ERROR)
 
 
 class Table:
@@ -88,34 +123,44 @@ class Table:
             else:
                 assert False
 
-    @staticmethod
-    def eval(
-        v: Union[Callable[[], V], V],
-        ref: Optional[Union[Callable[[], Any], Any]] = NO.NE,
-        func: Callable[[V, Any], bool] = lambda v, r: v == r,
-    ) -> Union[V, Value[V]]:
-        if callable(v):
-            try:
-                value = v()
-            except AttributeError as err:
-                return Value(NO.NE, Value.Status.NO_VARS)
-            except IndexError as err:
-                return Value(NO.NE, Value.Status.NO_INFO)
-        else:
-            value = v
-        if ref == NO.NE:
-            return value
-        if callable(ref):
-            try:
-                ref = ref()
-            except (AttributeError, IndexError):
-                return Value(value, Value.Status.NO_REF)
-        try:
-            return Value(value, (Value.Status.FAIL, Value.Status.PASS)[func(value, ref)])
-        except Exception as err:
-            logger.error(f"table: error {err} during validate {func} of {v}, {ref}")
-            return Value(value, Value.Status.VALIDATE_ERROR)
-
+    # @staticmethod
+    # def eval(
+    #     v: Union[Callable[[], V], V],
+    #     ref: Optional[Union[Callable[[], Any], Any]] = NO.NE,
+    #     func: Callable[[V, Any], bool] = lambda v, r: v == r,
+    # ) -> Union[V, Value[V]]:
+    #     if v is None:
+    #         if ref == NO.NE:
+    #             return Value(NO.NE, Value.Status.NO_DATA)
+    #         else:
+    #             return Value(NO.NE, Value.Status.NO_INFO)
+    #     if callable(v):
+    #         try:
+    #             value = v()
+    #         # except AttributeError as err:
+    #         #     return Value(NO.NE, Value.Status.NO_VARS)
+    #         # except (IndexError, DataError) as err:
+    #         #     return Value(NO.NE, Value.Status.NO_INFO)
+    #         except:  # noqa:
+    #             if ref == NO.NE:
+    #                 return Value(NO.NE, Value.Status.NO_DATA)
+    #             else:
+    #                 return Value(NO.NE, Value.Status.NO_INFO)
+    #     else:
+    #         value = v
+    #     if ref == NO.NE:
+    #         return value
+    #     if callable(ref):
+    #         try:
+    #             ref = ref()
+    #         except:  # noqa:
+    #             return Value(value, Value.Status.NO_REF)
+    #     try:
+    #         return Value(value, (Value.Status.FAIL, Value.Status.PASS)[func(value, ref)])
+    #     except Exception as err:
+    #         logger.error(f"table: error {err} during validate {func} of {v}, {ref}")
+    #         return Value(value, Value.Status.VALIDATE_ERROR)
+    #
     @staticmethod
     def to_rich(
         v: Any,
@@ -126,7 +171,7 @@ class Table:
             return str(v)
 
     def __rich__(self) -> RTable:
-        table = RTable(expand=True)
+        table = RTable(expand=True, box=box.ASCII2)
         for header in self.headers():
             table.add_column(header)
         for row in self.rows():
