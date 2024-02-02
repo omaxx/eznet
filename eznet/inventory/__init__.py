@@ -37,7 +37,7 @@ class Inventory:
         if path.is_dir():
             logger.info(f"inventory: load from {path}/")
             for child in sorted(path.glob("*")):
-                if child.is_dir() or child.suffix in [".yaml", ".yml"]:
+                if child.is_dir() or child.suffix in [".yaml", ".yml", ".json", ".jsonnet"]:
                     self.load(child)
         elif path.suffix in [".yaml", ".yml"]:
             logger.info(f"inventory: load from {path}")
