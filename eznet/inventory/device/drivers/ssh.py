@@ -49,11 +49,13 @@ class SSH:
         ip: str,
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
+        root_pass: Optional[str] = None,
         device_id: Optional[str] = None,
     ):
         self.ip = ip
         self.user_name = user_name or os.environ["USER"]
         self.user_pass = user_pass
+        self.root_pass = root_pass
         self.device_id = device_id
 
         if device_id is None:
@@ -158,6 +160,7 @@ class SSH:
     async def execute(
         self,
         cmd: str,
+        password: Optional[str] = None,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Tuple[str, str]:
         if self.connection is None:
@@ -173,6 +176,9 @@ class SSH:
                     create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
+                if password is not None:
+                    chan.write(password)
+                    chan.write_eof()
                 # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
 
                 done = asyncio.Event()

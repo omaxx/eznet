@@ -37,6 +37,7 @@ class Device:
         ssh = dict(
             user_name=user_name,
             user_pass=user_pass,
+            root_pass=root_pass,
             device_id=self.id,
         )
         if isinstance(ip, str):

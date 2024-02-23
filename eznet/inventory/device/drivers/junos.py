@@ -99,14 +99,33 @@ class Junos:
         self,
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
+        as_root: bool = False,
+        re: Optional[Literal["re0", "re1"]] = None,
     ) -> Optional[str]:
         if self.ssh is None:
             return None
         try:
-            output, error = await self.ssh.execute(
-                f'start shell command "{cmd}"',
-                timeout=timeout,
-            )
+            if not as_root:
+                output, error = await self.ssh.execute(
+                    f'start shell command "{cmd}"',
+                    timeout=timeout,
+                )
+            else:
+                if self.ssh.root_pass is None:
+                    return None
+                if re is None:
+                    output, error = await self.ssh.execute(
+                        f'start shell user root command "{cmd}"',
+                        password=self.ssh.root_pass,
+                        timeout=timeout,
+                    )
+                else:
+                    output, error = await self.ssh.execute(
+                        f'start shell user root command "rsh -Ji {re} \'{cmd}\'"',
+                        password=self.ssh.root_pass,
+                        timeout=timeout,
+                    )
+                output = output[9:]
             if self.error_in_output(cmd, output):
                 return None
             if error is not None and error != "":
