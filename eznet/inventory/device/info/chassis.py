@@ -199,8 +199,35 @@ class RE:
         return None
 
 
+@dataclass
+class HW:
+    model: str
+    pn: str
+    sn: str
+    description: str
+
+    @staticmethod
+    def from_xml(xml: _Element) -> HW:
+        return HW(
+            model=text(xml, "model-number"),
+            pn=text(xml, "part-number"),
+            sn=text(xml, "serial-number"),
+            description=text(xml, "description"),
+        )
+
+    @staticmethod
+    async def fetch(device: eznet.Device) -> Optional[HW]:
+        show_chassis_hw = await device.junos.run_xml_cmd("show chassis hardware")
+        if show_chassis_hw is not None:
+            hw_information = show_chassis_hw.find("//chassis-inventory/chassis")
+            if hw_information is not None:
+                return HW.from_xml(hw_information)
+        return None
+
+
 class Chassis:
     def __init__(self, device: eznet.Device):
         self.fpc = Data(device, FPC.fetch)
         self.re = Data(device, RE.fetch)
         self.fw = Data(device, FW.fetch)
+        self.hw = Data(device, HW.fetch)
