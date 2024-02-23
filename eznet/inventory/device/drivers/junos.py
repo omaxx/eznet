@@ -5,6 +5,8 @@ from pathlib import Path
 import logging
 import re as regexp
 import json
+import string
+import random
 
 from lxml import etree
 from lxml.etree import _Element  # noqa
@@ -286,6 +288,7 @@ class Junos:
         local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
         host: bool = False,
+        tmp_folder: str = "/tmp",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
@@ -300,9 +303,8 @@ class Junos:
             local_path = Path(local_path)
         if not local_path.exists():
             local_path.mkdir(parents=True)
-        tmp_folder = "."
-        tmp_file_name = remote_path.name
-        local_file_name = tmp_file_name
+        local_file_name = remote_path.name
+        tmp_file_name = ''.join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         if re in ["re0", "both"]:
             await self.run_cmd(f"file copy re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}", timeout=300)
             await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", f"{local_path}/re0.{local_file_name}")
@@ -323,6 +325,7 @@ class Junos:
         remote_path: Union[Path, str],
         local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
+        tmp_folder: str = "/tmp",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
@@ -333,21 +336,20 @@ class Junos:
         if not local_path.exists():
             local_path.mkdir(parents=True)
         if remote_path.is_absolute():
-            tmp_file_name = (
+            local_file_name = (
                 f"{remote_path.relative_to('/')}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
         else:
-            tmp_file_name = (
+            local_file_name = (
                 f"{remote_path}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
-        tmp_folder = "."
-        local_file_name = tmp_file_name
+        tmp_file_name = ''.join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         re_command = {
             "re0": " re0",
             "re1": " re1",
