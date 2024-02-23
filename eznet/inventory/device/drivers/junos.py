@@ -5,6 +5,8 @@ from pathlib import Path
 import logging
 import re as regexp
 import json
+import string
+import random
 
 from lxml import etree
 from lxml.etree import _Element  # noqa
@@ -72,20 +74,20 @@ class Junos:
         re: Literal["re0", "re1", "local", "other", "master", "backup", "both"],
         cli: bool = False,
         timeout: int = DEFAULT_CMD_TIMEOUT,
-    ):
+    ) -> Optional[str]:
         if self.ssh is None:
             return None
         if re in ["re0", "re1"]:
-            pass
+            cmd_re: str = re
         elif re in ["re1", "local", "other", "master", "backup", "both"]:
-            re = f"routing-engine {re}"
+            cmd_re = f"routing-engine {re}"
         else:
             raise TypeError()
         if cli:
             cmd = f"cli -c '{cmd}'"
         try:
             output, _ = await self.ssh.execute(
-                f'request routing-engine execute {re} command "{cmd}"',
+                f'request routing-engine execute {cmd_re} command "{cmd}"',
                 timeout=timeout,
             )
             if self.error_in_output(cmd, output):
@@ -99,14 +101,33 @@ class Junos:
         self,
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
+        as_root: bool = False,
+        re: Optional[Literal["re0", "re1"]] = None,
     ) -> Optional[str]:
         if self.ssh is None:
             return None
         try:
-            output, error = await self.ssh.execute(
-                f'start shell command "{cmd}"',
-                timeout=timeout,
-            )
+            if not as_root:
+                output, error = await self.ssh.execute(
+                    f'start shell command "{cmd}"',
+                    timeout=timeout,
+                )
+            else:
+                if self.ssh.root_pass is None:
+                    return None
+                if re is None:
+                    output, error = await self.ssh.execute(
+                        f'start shell user root command "{cmd}"',
+                        password=self.ssh.root_pass,
+                        timeout=timeout,
+                    )
+                else:
+                    output, error = await self.ssh.execute(
+                        f'start shell user root command "rsh -Ji {re} \'{cmd}\'"',
+                        password=self.ssh.root_pass,
+                        timeout=timeout,
+                    )
+                output = output[9:]
             if self.error_in_output(cmd, output):
                 return None
             if error is not None and error != "":
@@ -267,6 +288,7 @@ class Junos:
         local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
         host: bool = False,
+        tmp_folder: str = "/tmp",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
@@ -281,9 +303,8 @@ class Junos:
             local_path = Path(local_path)
         if not local_path.exists():
             local_path.mkdir(parents=True)
-        tmp_folder = "."
-        tmp_file_name = remote_path.name
-        local_file_name = tmp_file_name
+        local_file_name = remote_path.name
+        tmp_file_name = ''.join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         if re in ["re0", "both"]:
             await self.run_cmd(f"file copy re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}", timeout=300)
             await self.ssh.download(f"{tmp_folder}/re0.{tmp_file_name}", f"{local_path}/re0.{local_file_name}")
@@ -293,16 +314,18 @@ class Junos:
             await self.run_cmd(f"file copy re1:{remote_path} {tmp_folder}/re1.{tmp_file_name}", timeout=300)
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
-            return True
 
         if re == "":
             await self.ssh.download(f"{remote_path}", f"{local_path}/{local_file_name}")
+
+        return True
 
     async def download_tar(
         self,
         remote_path: Union[Path, str],
         local_path: Union[Path, str] = ".",
         re: Literal["re0", "re1", "both", ""] = "",
+        tmp_folder: str = "/tmp",
     ) -> bool:
         if self.ssh is None or self.ssh.connection is None:
             return False
@@ -313,21 +336,20 @@ class Junos:
         if not local_path.exists():
             local_path.mkdir(parents=True)
         if remote_path.is_absolute():
-            tmp_file_name = (
+            local_file_name = (
                 f"{remote_path.relative_to('/')}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
         else:
-            tmp_file_name = (
+            local_file_name = (
                 f"{remote_path}"
                 .replace("/", ".")
                 .replace("*", "")
                 + ".tgz"
             )
-        tmp_folder = "."
-        local_file_name = tmp_file_name
+        tmp_file_name = ''.join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         re_command = {
             "re0": " re0",
             "re1": " re1",
@@ -355,8 +377,9 @@ class Junos:
             )
             await self.ssh.download(f"{tmp_folder}/re1.{tmp_file_name}", f"{local_path}/re1.{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
-            return True
 
         if re == "":
             await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", f"{local_path}/{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
+
+        return True

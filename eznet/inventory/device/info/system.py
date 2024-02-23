@@ -195,8 +195,8 @@ class CoreDump:
 
 class System:
     def __init__(self, device: eznet.Device) -> None:
-        self.info = Data(Info.fetch, device)
-        self.alarms = Data(Alarm.fetch, device)
-        self.sw = Data(SW.fetch, device)
-        self.uptime = Data(Uptime.fetch, device)
-        self.coredumps = Data(CoreDump.fetch, device)
+        self.info = Data(device, Info.fetch)
+        self.alarms = Data(device, Alarm.fetch)
+        self.sw = Data(device, SW.fetch)
+        self.uptime = Data(device, Uptime.fetch)
+        self.coredumps = Data(device, CoreDump.fetch)

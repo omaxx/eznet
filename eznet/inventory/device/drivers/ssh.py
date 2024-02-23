@@ -49,11 +49,13 @@ class SSH:
         ip: str,
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
+        root_pass: Optional[str] = None,
         device_id: Optional[str] = None,
     ):
         self.ip = ip
         self.user_name = user_name or os.environ["USER"]
         self.user_pass = user_pass
+        self.root_pass = root_pass
         self.device_id = device_id
 
         if device_id is None:
@@ -158,6 +160,7 @@ class SSH:
     async def execute(
         self,
         cmd: str,
+        password: Optional[str] = None,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Tuple[str, str]:
         if self.connection is None:
@@ -173,18 +176,21 @@ class SSH:
                     create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
+                if password is not None:
+                    chan.write(password)
+                    chan.write_eof()
                 # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
 
                 done = asyncio.Event()
 
-                async def wait():
+                async def wait() -> None:
                     try:
                         await done.wait()
                     except asyncio.CancelledError:
                         chan.abort()
                         raise
 
-                async def run_cmd():
+                async def run_cmd() -> None:
                     try:
                         await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
                     finally:
@@ -279,7 +285,7 @@ class SSH:
                 # workaround for avoiding async.scp stucks during cancel
                 done = asyncio.Event()
 
-                async def download():
+                async def download() -> None:
                     try:
                         await asyncssh.scp(
                             (self.connection, src),
@@ -360,7 +366,7 @@ class SSH:
                 # workaround for avoiding async.scp stucks during cancel
                 done = asyncio.Event()
 
-                async def upload():
+                async def upload() -> None:
                     try:
                         await asyncssh.scp(
                             src,
@@ -451,7 +457,7 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
 
 def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
     class SSHClientSession(asyncssh.SSHClientSession[str]):
-        def __init__(self):
+        def __init__(self) -> None:
             self.time = time()
             self.rcvd: int = 0
 
