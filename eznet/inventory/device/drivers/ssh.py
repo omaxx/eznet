@@ -15,7 +15,7 @@ from pathlib import Path
 from .base import *
 
 DEFAULT_CONNECT_TIMEOUT = 30
-DEFAULT_CMD_TIMEOUT = 60
+DEFAULT_CMD_TIMEOUT = 180
 DEFAULT_KEEPALIVE = 5
 DEFAULT_RECONNECT_TIMEOUT = 15
 DEFAULT_ENCODING = "latin-1"
@@ -173,13 +173,12 @@ class SSH:
         async with execute_semaphore[asyncio.get_running_loop()]:
             try:
                 chan, session = await self.connection.create_session(
-                    create_session_factory(self, request), cmd, encoding=DEFAULT_ENCODING,
+                    create_session_factory(self, request), cmd, encoding=None,
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
                 if password is not None:
                     chan.write(password)
                     chan.write_eof()
-                # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
 
                 done = asyncio.Event()
 
@@ -193,13 +192,15 @@ class SSH:
                 async def run_cmd() -> None:
                     try:
                         await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
+                    except (TimeoutError, asyncio.TimeoutError):
+                        chan.abort()
+                        raise
                     finally:
                         done.set()
 
                 await asyncio.gather(
                     run_cmd(),
                     wait(),
-                    # done.wait(),
                 )
 
             except (
@@ -218,9 +219,9 @@ class SSH:
                 )
                 raise
             else:
-                self.logger.debug(
-                    f"{self}: execute `{cmd}`: "
-                    f"got reply: {len(request.stdout)} bytes / {len(request.stderr)} bytes"
+                self.logger.info(
+                    f"{self}: execute `{cmd}`: DONE: "
+                    f"got reply: {len(request.stdout_bytes)} bytes / {len(request.stderr_bytes)} bytes"
                 )
                 if request.stdout:
                     self.logger.debug(
@@ -404,11 +405,19 @@ class Request:
 class CmdRequest(Request):
     def __init__(self, cmd: str):
         self.cmd = cmd
-        self.stdout = ""
-        self.stderr = ""
+        self.stdout_bytes = bytearray()
+        self.stderr_bytes = bytearray()
+
+    @property
+    def stdout(self) -> str:
+        return self.stdout_bytes.decode(encoding=DEFAULT_ENCODING, errors="ignore")
+
+    @property
+    def stderr(self) -> str:
+        return self.stderr_bytes.decode(encoding=DEFAULT_ENCODING, errors="ignore")
 
     def __repr__(self) -> str:
-        return f"{self.cmd}\t{len(self.stdout):,}\t/\t{len(self.stderr):,}"
+        return f"{self.cmd}\t{len(self.stdout_bytes):,}\t/\t{len(self.stderr_bytes):,}"
 
 
 class FileRequest(Request):
@@ -458,22 +467,23 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
 def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
     class SSHClientSession(asyncssh.SSHClientSession[str]):
         def __init__(self) -> None:
-            self.time = time()
-            self.rcvd: int = 0
+            self.start_time = self.time = time()
+            # self.rcvd: int = 0
 
-        def data_received(self, data: str, datatype: asyncssh.DataType) -> None:
+        def data_received(self, data: bytes, datatype: asyncssh.DataType) -> None:
             if datatype == asyncssh.EXTENDED_DATA_STDERR:
-                request.stderr += data
+                request.stderr_bytes += data
             else:
-                request.stdout += data
+                request.stdout_bytes += data
             current_time = time()
             if current_time - self.time > LONG_REQUEST_LOG_TIMEOUT:
                 ssh.logger.info(
-                    f"{ssh}: execute `{request.cmd}`: received "
-                    f"{len(request.stdout) + len(request.stderr):,} bytes",
+                    f"{ssh}: execute `{request.cmd}`: RUNNING: received "
+                    f"{len(request.stdout_bytes) + len(request.stderr_bytes):,} bytes"
+                    f" in {current_time - self.start_time:.0f} sec"
                 )
 
                 self.time = current_time
-                self.rcvd = len(request.stdout) + len(request.stderr)
+                # self.rcvd = len(request.stdout) + len(request.stderr)
 
     return SSHClientSession
