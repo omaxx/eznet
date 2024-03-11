@@ -177,7 +177,7 @@ class SSH:
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
                 if password is not None:
-                    chan.write(password)
+                    chan.write(password.encode(DEFAULT_ENCODING))
                     chan.write_eof()
 
                 done = asyncio.Event()

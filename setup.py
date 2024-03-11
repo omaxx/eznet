@@ -9,7 +9,7 @@ install_requires = requirements_file.read_text().splitlines()
 
 setup(
     name="eznet",
-    version="0.1.2",
+    version="0.1.3",
     packages=find_packages(),
     url="https://github.com/omaxx/eznet",
     license="",
