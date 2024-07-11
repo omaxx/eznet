@@ -12,18 +12,26 @@ from collections import defaultdict
 from time import time
 from pathlib import Path
 
-from .base import *
+from .states import State
+from .errors import ConnectError, AuthenticationError, ExecutionError
 
 DEFAULT_CONNECT_TIMEOUT = 30
 DEFAULT_CMD_TIMEOUT = 180
 DEFAULT_KEEPALIVE = 5
-DEFAULT_RECONNECT_TIMEOUT = 15
 DEFAULT_ENCODING = "latin-1"
+RECONNECT_ATTEMPTS = 20
+DEFAULT_RECONNECT_TIMEOUT = 15
+
+ASYNCSSH_PARAMS = {
+    "connect_timeout": DEFAULT_CONNECT_TIMEOUT,
+    "keepalive_interval": DEFAULT_KEEPALIVE,
+    "known_hosts": None,
+}
 
 MAX_SIMULTANEOUS_CONNECTIONS = 64
-MAX_SIMULTANEOUS_EXECUTIONS = 64
 MAX_SIMULTANEOUS_DOWNLOADS = 2
 MAX_SIMULTANEOUS_UPLOADS = 2
+MAX_DEVICE_SIMULTANEOUS_EXECUTIONS = 2
 
 LONG_REQUEST_LOG_TIMEOUT = 10
 
@@ -31,9 +39,6 @@ MODULE = __name__.split(".")[0]
 
 connection_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
     lambda: asyncio.Semaphore(MAX_SIMULTANEOUS_CONNECTIONS)
-)
-execute_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
-    lambda: asyncio.Semaphore(MAX_SIMULTANEOUS_EXECUTIONS)
 )
 download_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
     lambda: asyncio.Semaphore(MAX_SIMULTANEOUS_DOWNLOADS)
@@ -49,24 +54,30 @@ class SSH:
         ip: str,
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
-        root_pass: Optional[str] = None,
+        proxy: Optional[SSH] = None,
         device_id: Optional[str] = None,
     ):
         self.ip = ip
         self.user_name = user_name or os.environ["USER"]
         self.user_pass = user_pass
-        self.root_pass = root_pass
+        self.proxy = proxy
         self.device_id = device_id
 
         if device_id is None:
-            self.logger = logging.getLogger(f"{MODULE}.device")
+            self.logger = logging.getLogger("eznet.ssh")
         else:
-            self.logger = logging.getLogger(f"{MODULE}.device.{device_id}")
+            self.logger = logging.getLogger(f"eznet.device.{device_id}")
 
         self.connection: Optional[asyncssh.SSHClientConnection] = None
         self.state = State.DISCONNECTED
         self.error: Optional[str] = None
-        self.lock: Dict[asyncio.AbstractEventLoop, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+        self.connect_lock: Dict[asyncio.AbstractEventLoop, asyncio.Lock] = defaultdict(
+            asyncio.Lock
+        )
+        self.execute_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
+            defaultdict(lambda: asyncio.Semaphore(MAX_DEVICE_SIMULTANEOUS_EXECUTIONS))
+        )
 
         self.requests: List[Request] = []
 
@@ -85,7 +96,7 @@ class SSH:
         exc: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
-        self.disconnect()
+        await self.disconnect()
 
     async def connect(
         self,
@@ -93,26 +104,37 @@ class SSH:
         connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
         reconnect_timeout: int = DEFAULT_RECONNECT_TIMEOUT,
     ) -> None:
-        async with self.lock[asyncio.get_running_loop()]:
+        async with self.connect_lock[asyncio.get_running_loop()]:
             if self.connection is not None:
+                self.logger.warning(f"{self}: already connected")
                 return
-            self.state = State.WAITING_CONNECT
-            self.error = None
-            await connection_semaphore[asyncio.get_running_loop()].acquire()
-            while attempts > 0:
+
+            attempt = 0
+            while attempt < attempts:
+                self.state = State.WAIT_CONNECT
+                self.error = None
+                await connection_semaphore[asyncio.get_running_loop()].acquire()
+
                 self.state = State.CONNECTING
                 self.logger.info(
                     f"{self}: connecting to {self.ip} as {self.user_name}"
+                    + (f" (attempt {attempt + 1})" if attempt > 0 else "")
                 )
                 try:
+                    if self.proxy is None:
+                        tunnel: Optional[asyncssh.SSHClientConnection] = None
+                    elif self.proxy.connection is None:
+                        raise ConnectError(f"proxy {self.proxy} is not connected")
+                    else:
+                        tunnel = self.proxy.connection
+
                     self.connection = await asyncssh.connect(
                         host=self.ip,
                         username=self.user_name,
                         password=self.user_pass,
                         client_factory=create_client_factory(self),
-                        connect_timeout=connect_timeout,
-                        keepalive_interval=DEFAULT_KEEPALIVE,
-                        known_hosts=None,
+                        tunnel=tunnel,
+                        **ASYNCSSH_PARAMS,
                     )
                 except (
                     socket.gaierror,
@@ -122,12 +144,12 @@ class SSH:
                     ConnectionResetError,
                     OSError,  # Network unreachable
                     asyncssh.Error,
+                    ConnectError,
                 ) as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
                     self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
-                    # Semaphore.get().connect.release()
-                    # raise ConnectError() from None
+                    connection_semaphore[asyncio.get_running_loop()].release()
                 except asyncio.exceptions.CancelledError as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
@@ -145,17 +167,18 @@ class SSH:
                     self.logger.info(f"{self}: CONNECTED")
                     return
 
-                attempts -= 1
-                if attempts > 0:
-                    self.state = State.WAITING_RECONNECT
+                attempt += 1
+                if attempts > attempt:
+                    self.state = State.WAIT_RECONNECT
                     await asyncio.sleep(reconnect_timeout)
 
-            connection_semaphore[asyncio.get_running_loop()].release()
+            # connection_semaphore[asyncio.get_running_loop()].release()
             raise ConnectError(self.error)
 
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         if self.connection is not None:
             self.connection.close()
+            await self.connection.wait_closed()
 
     async def execute(
         self,
@@ -165,12 +188,12 @@ class SSH:
     ) -> Tuple[str, str]:
         if self.connection is None:
             self.logger.warning(f"{self}: execute `{cmd}` not connected")
-            raise RequestError("Not connected")
+            raise ExecutionError("Not connected")
 
         request = CmdRequest(cmd)
         self.requests.append(request)
 
-        async with execute_semaphore[asyncio.get_running_loop()]:
+        async with self.execute_semaphore[asyncio.get_running_loop()]:
             try:
                 chan, session = await self.connection.create_session(
                     create_session_factory(self, request), cmd, encoding=None,
@@ -179,6 +202,8 @@ class SSH:
                 if password is not None:
                     chan.write(password.encode(DEFAULT_ENCODING))
                     chan.write_eof()
+
+                # await asyncio.wait_for(chan.wait_closed(), timeout=timeout)
 
                 done = asyncio.Event()
 
@@ -201,6 +226,7 @@ class SSH:
                 await asyncio.gather(
                     run_cmd(),
                     wait(),
+                    # done.wait(),
                 )
 
             except (
@@ -211,8 +237,8 @@ class SSH:
                 self.logger.error(
                     f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
                 )
-                self.error = f"{err.__class__.__name__}"
-                raise RequestError(self.error)
+                # self.error = f"{err.__class__.__name__}"
+                raise ExecutionError(self.error)
             except asyncio.CancelledError as err:
                 self.logger.error(
                     f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
@@ -297,6 +323,7 @@ class SSH:
                         )
                     finally:
                         done.set()
+
                 await asyncio.gather(download(), done.wait())
             except (
                 asyncssh.SFTPError,
@@ -378,6 +405,7 @@ class SSH:
                         )
                     finally:
                         done.set()
+
                 await asyncio.gather(upload(), done.wait())
             except (
                 asyncssh.SFTPError,
@@ -449,17 +477,17 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
                 if err is None:
                     ssh.logger.info(f"{ssh}: DISCONNECTED")
                 else:
-                    ssh.logger.error(f"{ssh}: DISCONNECTED: {err}")
                     ssh.error = f"{err.__class__.__name__}"
+                    ssh.logger.error(f"{ssh}: DISCONNECTED: {err.__class__.__name__}: {err}")
 
-                    # try:
-                    #     loop = asyncio.get_running_loop()
-                    #     loop.create_task(ssh.connect(
-                    #         attempts=RECONNECT_ATTEMPTS,
-                    #         attempt_timeout=RECONNECT_ATTEMPT_TIMEOUT,
-                    #     ))
-                    # except RuntimeError as err:
-                    #     ssh.logger.critical(f"{ssh}: reconnect error: {err}")
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(ssh.connect(
+                            attempts=RECONNECT_ATTEMPTS,
+                            reconnect_timeout=DEFAULT_RECONNECT_TIMEOUT,
+                        ))
+                    except RuntimeError as err:
+                        ssh.logger.critical(f"{ssh}: reconnect error: {err}")
 
     return SSHClient
 

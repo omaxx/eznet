@@ -11,30 +11,11 @@ import random
 from lxml import etree
 from lxml.etree import _Element  # noqa
 
-from .ssh import SSH, DEFAULT_CMD_TIMEOUT, RequestError
+from .device import Device
+from .drivers.ssh import DEFAULT_CMD_TIMEOUT, ExecutionError
 
 
-class Junos:
-    def __init__(
-        self,
-        ssh: Optional[SSH],
-        device_id: Optional[str] = None,
-    ):
-        self.ssh = ssh
-        self.device_id = device_id
-        if ssh is not None:
-            self.logger = ssh.logger
-        elif device_id is not None:
-            self.logger = logging.getLogger(f"eznet.device.{device_id}")
-        else:
-            raise TypeError()
-
-    def __str__(self) -> str:
-        if self.ssh is not None:
-            return f"{self.ssh}: junos"
-        else:
-            return f"{self.device_id}: junos"
-
+class Junos(Device):
     def error_in_output(
         self,
         cmd: str,
@@ -63,7 +44,7 @@ class Junos:
             output, _ = await self.ssh.execute(cmd, timeout=timeout)
             if self.error_in_output(cmd, output):
                 return None
-        except RequestError:
+        except ExecutionError:
             return None
 
         return output
@@ -92,7 +73,7 @@ class Junos:
             )
             if self.error_in_output(cmd, output):
                 return None
-        except RequestError:
+        except ExecutionError:
             return None
 
         return output
@@ -133,7 +114,7 @@ class Junos:
             if error is not None and error != "":
                 self.logger.warning(f"{self}: run_shell_cmd: ERROR: {error.strip()}")
                 return None
-        except RequestError:
+        except ExecutionError:
             return None
 
         return output
@@ -160,7 +141,7 @@ class Junos:
                     return None
             except ValueError:
                 pass
-        except RequestError:
+        except ExecutionError:
             return None
 
         return output

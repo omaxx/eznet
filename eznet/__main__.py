@@ -15,7 +15,7 @@ from rich.console import Console
 
 from eznet import Device, Inventory
 from eznet import tables
-from eznet.logger import config_logger
+from eznet.logging import config_logger
 
 JOB_TS_FORMAT = "%Y%m%d-%H%M%S"
 
