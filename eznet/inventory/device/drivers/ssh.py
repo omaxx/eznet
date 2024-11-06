@@ -13,7 +13,7 @@ from time import time
 from pathlib import Path
 
 from .states import State
-from .errors import ConnectError, AuthenticationError, ExecutionError
+from .errors import ConnectError, AuthenticationError, ExecutionError, ProxyError
 
 DEFAULT_CONNECT_TIMEOUT = 30
 DEFAULT_CMD_TIMEOUT = 180
@@ -51,22 +51,22 @@ upload_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdi
 class SSH:
     def __init__(
         self,
-        ip: str,
+        host: str,
         user_name: Optional[str] = None,
         user_pass: Optional[str] = None,
         proxy: Optional[SSH] = None,
         device_id: Optional[str] = None,
-    ):
-        self.ip = ip
+    ) -> None:
+        self.host = host
         self.user_name = user_name or os.environ["USER"]
         self.user_pass = user_pass
         self.proxy = proxy
         self.device_id = device_id
 
-        if device_id is None:
+        if self.device_id is None:
             self.logger = logging.getLogger("eznet.ssh")
         else:
-            self.logger = logging.getLogger(f"eznet.device.{device_id}")
+            self.logger = logging.getLogger(f"eznet.device.{self.device_id}")
 
         self.connection: Optional[asyncssh.SSHClientConnection] = None
         self.state = State.DISCONNECTED
@@ -83,9 +83,9 @@ class SSH:
 
     def __str__(self) -> str:
         if self.device_id is not None:
-            return f"{self.device_id} (ip={self.ip or ''}): ssh"
+            return f"{self.device_id} (host={self.host or ''}): ssh"
         else:
-            return f"{self.ip}: ssh"
+            return f"{self.host}: ssh"
 
     async def __aenter__(self) -> None:
         await self.connect()
@@ -104,6 +104,8 @@ class SSH:
         connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
         reconnect_timeout: int = DEFAULT_RECONNECT_TIMEOUT,
     ) -> None:
+        if self.host is None:
+            raise ConnectError()
         async with self.connect_lock[asyncio.get_running_loop()]:
             if self.connection is not None:
                 self.logger.warning(f"{self}: already connected")
@@ -117,25 +119,31 @@ class SSH:
 
                 self.state = State.CONNECTING
                 self.logger.info(
-                    f"{self}: connecting to {self.ip} as {self.user_name}"
+                    f"{self}: connecting to {self.host} as {self.user_name}"
                     + (f" (attempt {attempt + 1})" if attempt > 0 else "")
                 )
                 try:
                     if self.proxy is None:
                         tunnel: Optional[asyncssh.SSHClientConnection] = None
                     elif self.proxy.connection is None:
-                        raise ConnectError(f"proxy {self.proxy} is not connected")
+                        raise ProxyError(f"proxy {self.proxy} is not connected")
                     else:
                         tunnel = self.proxy.connection
 
                     self.connection = await asyncssh.connect(
-                        host=self.ip,
+                        host=self.host,
                         username=self.user_name,
                         password=self.user_pass,
                         client_factory=create_client_factory(self),
                         tunnel=tunnel,
                         **ASYNCSSH_PARAMS,
                     )
+                except asyncssh.PermissionDenied as err:
+                    self.state = State.DISCONNECTED
+                    self.error = f"{err.__class__.__name__}"
+                    self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
+                    connection_semaphore[asyncio.get_running_loop()].release()
+                    raise AuthenticationError(self.error)
                 except (
                     socket.gaierror,
                     TimeoutError,
@@ -492,8 +500,8 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
     return SSHClient
 
 
-def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[str]]:
-    class SSHClientSession(asyncssh.SSHClientSession[str]):
+def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[bytes]]:
+    class SSHClientSession(asyncssh.SSHClientSession[bytes]):
         def __init__(self) -> None:
             self.start_time = self.time = time()
             # self.rcvd: int = 0

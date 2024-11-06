@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+from typing import Optional, NoReturn
 from dataclasses import dataclass
-from typing import Optional, List, Dict
 from datetime import datetime
-
-from lxml.etree import _Element  # noqa
+from xml.etree.ElementTree import Element
 
 import eznet
-from eznet.data import Data
-from eznet.parsers.xml import text, timestamp, number
+from .info import raise_error, Info
+
+from eznet.parsers.xml import text, timestamp
 
 
 @dataclass
-class Info:
+class SysInfo:
     hostname: Optional[str]
     sw_family: Optional[str]
     sw_version: Optional[str]
@@ -20,8 +20,8 @@ class Info:
     hw_sn: Optional[str]
 
     @staticmethod
-    def from_xml(system_info: _Element) -> Info:
-        return Info(
+    def from_xml(system_info: Element) -> SysInfo:
+        return SysInfo(
             hostname=text(system_info, "host-name"),
             sw_family=text(system_info, "os-name"),
             sw_version=text(system_info, "os-version"),
@@ -30,15 +30,14 @@ class Info:
         )
 
     @staticmethod
-    async def fetch(device: eznet.Device) -> Optional[Info]:
-        xml = await device.junos.run_xml_cmd(
+    async def fetch(device: eznet.Device) -> SysInfo:
+        xml = await device.run_xml_cmd(
             "show system information",
         )
-        if xml is not None:
-            system_info = xml.find("system-information")
-            if system_info is not None:
-                return Info.from_xml(system_info)
-        return None
+        if (system_info := xml.find("system-information")) is not None:
+            return SysInfo.from_xml(system_info)
+        else:
+            return raise_error(xml)
 
 
 @dataclass
@@ -49,7 +48,7 @@ class Alarm:
     type: Optional[str]
 
     @staticmethod
-    def from_xml(alarm: _Element) -> Alarm:
+    def from_xml(alarm: Element) -> Alarm:
         return Alarm(
             ts=timestamp(alarm, "alarm-time"),
             cls=text(alarm, "alarm-class"),
@@ -58,18 +57,17 @@ class Alarm:
         )
 
     @staticmethod
-    async def fetch(device: eznet.Device) -> Optional[List[Alarm]]:
-        xml = await device.junos.run_xml_cmd(
+    async def fetch(device: eznet.Device) -> list[Alarm]:
+        xml = await device.run_xml_cmd(
             "show system alarms",
         )
-        if xml is not None:
-            alarm_info = xml.find("alarm-information")
-            if alarm_info is not None:
-                return [
-                    Alarm.from_xml(alarm)
-                    for alarm in alarm_info.findall("alarm-detail")
-                ]
-        return None
+        if (alarm_info := xml.find("alarm-information")) is not None:
+            return [
+                Alarm.from_xml(alarm)
+                for alarm in alarm_info.findall("alarm-detail")
+            ]
+        else:
+            return raise_error(xml)
 
 
 @dataclass
@@ -80,7 +78,7 @@ class SW:
     junos: Optional[str]
 
     @staticmethod
-    def from_xml(soft_info: _Element) -> SW:
+    def from_xml(soft_info: Element) -> SW:
         return SW(
             hostname=text(soft_info, "host-name"),
             product_model=text(soft_info, "product-model"),
@@ -89,114 +87,34 @@ class SW:
         )
 
     @staticmethod
-    async def fetch(device: eznet.Device, both_re: bool = False) -> Optional[Dict[str, SW]]:
+    async def fetch(device: eznet.Device, both_re: bool = False) -> dict[str, SW]:
         if not both_re:
-            xml = await device.junos.run_xml_cmd(
+            xml = await device.run_xml_cmd(
                 "show version",
             )
         else:
-            xml = await device.junos.run_xml_cmd(
+            xml = await device.run_xml_cmd(
                 "show version invoke-on all-routing-engines",
             )
 
-        if xml is not None:
-            soft_info = xml.find("software-information")
-            if soft_info is not None:
-                return {
-                    "localre": SW.from_xml(soft_info)
-                }
-            mre_results = xml.find("multi-routing-engine-results")
-            if mre_results is not None:
-                return {
-                    re_name: SW.from_xml(sw_info)
-                    for mre_item in mre_results.findall("multi-routing-engine-item")
-                    if (re_name := text(mre_item, "re-name")) is not None
-                    and (sw_info := mre_item.find("software-information")) is not None
-                }
-        return None
 
-
-@dataclass
-class Uptime:
-    current_time: Optional[datetime]
-    system_boot_time: Optional[datetime]
-    protocol_start_time: Optional[datetime]
-    last_config_time: Optional[datetime]
-    time_source: Optional[str]
-
-    @staticmethod
-    def from_xml(uptime_info: _Element) -> Uptime:
-        return Uptime(
-            current_time=timestamp(uptime_info, "current-time/date-time"),
-            system_boot_time=timestamp(uptime_info, "system-booted-time/date-time"),
-            protocol_start_time=timestamp(uptime_info, "protocols-started-time/date-time"),
-            last_config_time=timestamp(uptime_info, "last-configured-time/date-time"),
-            time_source=text(uptime_info, "time-source", strip=True),
-        )
-
-    @staticmethod
-    async def fetch(device: eznet.Device, both_re: bool = False) -> Optional[Dict[str, Uptime]]:
-        if not both_re:
-            xml = await device.junos.run_xml_cmd("show system uptime")
+        if (soft_info := xml.find("software-information")) is not None:
+            return {
+                "localre": SW.from_xml(soft_info)
+            }
+        elif (mre_results := xml.find("multi-routing-engine-results")) is not None:
+            return {
+                re_name: SW.from_xml(sw_info)
+                for mre_item in mre_results.findall("multi-routing-engine-item")
+                if (re_name := text(mre_item, "re-name")) is not None
+                and (sw_info := mre_item.find("software-information")) is not None
+            }
         else:
-            xml = await device.junos.run_xml_cmd("show system uptime invoke-on all-routing-engines")
-        if xml is not None:
-            system_uptime = xml.find("system-uptime-information")
-            if system_uptime is not None:
-                return {
-                    "localre": Uptime.from_xml(system_uptime)
-                }
-            mre_results = xml.find("multi-routing-engine-results")
-            if mre_results is not None:
-                return {
-                    re_name: Uptime.from_xml(sw_uptime_info)
-                    for mre_item in mre_results.findall("multi-routing-engine-item")
-                    if (re_name := text(mre_item, "re-name")) is not None
-                    and (sw_uptime_info := mre_item.find("system-uptime-information")) is not None
-                }
-        return None
-
-
-@dataclass
-class CoreDump:
-    name: Optional[str]
-    size: Optional[int]
-    ts: Optional[datetime]
-    re: Optional[str] = None
-    host: Optional[bool] = None
-
-    @staticmethod
-    def from_xml(file_info: _Element) -> CoreDump:
-        return CoreDump(
-            name=text(file_info, "file-name"),
-            size=number(file_info, "file-size"),
-            ts=timestamp(file_info, "file-date"),
-            re=text(file_info, "../../../re-name"),
-            host=file_info.find("../..").attrib.get("style") == "host" or None,  # type: ignore[union-attr]
-        )
-
-    @staticmethod
-    async def fetch(device: eznet.Device, both_re: bool = False) -> Optional[List[CoreDump]]:
-        if not both_re:
-            xml = await device.junos.run_xml_cmd(
-                "show system core-dumps",
-            )
-        else:
-            xml = await device.junos.run_xml_cmd(
-                "show system core-dumps routing-engine both",
-            )
-        if xml is not None:
-            return [
-                CoreDump.from_xml(file_info)
-                for file_info in xml.findall(".//directory-list/directory/file-information")
-            ]
-        return None
+            return raise_error(xml)
 
 
 class System:
-    def __init__(self, device: eznet.Device) -> None:
-        self.info = Data(device, Info.fetch)
-        self.alarms = Data(device, Alarm.fetch)
-        self.sw = Data(device, SW.fetch)
-        self.uptime = Data(device, Uptime.fetch)
-        self.coredumps = Data(device, CoreDump.fetch)
+    def __init__(self, device: eznet.Device):
+        self.info = Info(device, SysInfo.fetch)
+        self.alarm = Info(device, Alarm.fetch)
+        self.sw = Info(device, SW.fetch)

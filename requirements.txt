@@ -1,15 +1,12 @@
 setuptools
+typing-extensions
 
 pyyaml
 types-PyYaml
-marshmallow
-marshmallow-dataclass
 lxml
 lxml-stubs
-jsonnet
+
+marshmallow
+marshmallow-dataclass
 
 asyncssh
-
-click
-rich
-pathlib3x
