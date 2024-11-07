@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
-
-# from lxml.etree import _Element as Element
+from lxml.etree import _Element
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -70,7 +69,7 @@ class XMLParser:
             return value
 
 
-def text(xml: Element, xpath: str, strip: bool = False) -> Optional[str]:
+def text(xml: Union[Element, _Element], xpath: str, strip: bool = False) -> Optional[str]:
     e = xml.find(xpath)
     if e is not None and e.text is not None:
         if not strip:
@@ -80,14 +79,14 @@ def text(xml: Element, xpath: str, strip: bool = False) -> Optional[str]:
     return None
 
 
-def number(xml: Element, xpath: str) -> Optional[int]:
+def number(xml: Union[Element, _Element], xpath: str) -> Optional[int]:
     e = xml.find(xpath)
     if e is not None and e.text is not None and e.text.isdigit():
         return int(e.text)
     return None
 
 
-def timestamp(xml: Element, xpath: str) -> Optional[datetime]:
+def timestamp(xml: Union[Element, _Element], xpath: str) -> Optional[datetime]:
     e = xml.find(xpath)
     if e is not None:
         if e.text is not None and e.text.isdigit():

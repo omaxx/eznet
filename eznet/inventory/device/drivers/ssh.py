@@ -153,11 +153,13 @@ class SSH:
                     OSError,  # Network unreachable
                     asyncssh.Error,
                     ConnectError,
+                    ProxyError,
                 ) as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
                     self.logger.error(f"{self}: {err.__class__.__name__}: {err}")
                     connection_semaphore[asyncio.get_running_loop()].release()
+                    attempt += 1
                 except asyncio.exceptions.CancelledError as err:
                     self.state = State.DISCONNECTED
                     self.error = f"{err.__class__.__name__}"
@@ -175,8 +177,7 @@ class SSH:
                     self.logger.info(f"{self}: CONNECTED")
                     return
 
-                attempt += 1
-                if attempts > attempt:
+                if attempt < attempts:
                     self.state = State.WAIT_RECONNECT
                     await asyncio.sleep(reconnect_timeout)
 

@@ -101,4 +101,7 @@ class Device(Junos):
         return list(self.ssh_s.values())[0]
 
     def __str__(self) -> str:
-        return self.name
+        return self.id
+
+    def __repr__(self) -> str:
+        return f"Device(id={self.id})"
