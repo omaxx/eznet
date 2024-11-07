@@ -63,8 +63,7 @@ class Alarm:
         )
         if (alarm_info := xml.find("alarm-information")) is not None:
             return [
-                Alarm.from_xml(alarm)
-                for alarm in alarm_info.findall("alarm-detail")
+                Alarm.from_xml(alarm) for alarm in alarm_info.findall("alarm-detail")
             ]
         else:
             return raise_error(xml)
@@ -97,11 +96,8 @@ class SW:
                 "show version invoke-on all-routing-engines",
             )
 
-
         if (soft_info := xml.find("software-information")) is not None:
-            return {
-                "localre": SW.from_xml(soft_info)
-            }
+            return {"localre": SW.from_xml(soft_info)}
         elif (mre_results := xml.find("multi-routing-engine-results")) is not None:
             return {
                 re_name: SW.from_xml(sw_info)

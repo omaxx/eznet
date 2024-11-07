@@ -204,7 +204,9 @@ class SSH:
         async with self.execute_semaphore[asyncio.get_running_loop()]:
             try:
                 chan, session = await self.connection.create_session(
-                    create_session_factory(self, request), cmd, encoding=None,
+                    create_session_factory(self, request),
+                    cmd,
+                    encoding=None,
                 )
                 self.logger.info(f"{self}: execute `{cmd}`")
                 if password is not None:
@@ -457,7 +459,9 @@ class CmdRequest(Request):
 
 
 class FileRequest(Request):
-    def __init__(self, file_name: Union[str, Path], received_bytes: int = 0, total_bytes: int = 0):
+    def __init__(
+        self, file_name: Union[str, Path], received_bytes: int = 0, total_bytes: int = 0
+    ):
         self.file_name = file_name
         self.received_bytes = received_bytes
         self.total_bytes = total_bytes
@@ -486,21 +490,27 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
                     ssh.logger.info(f"{ssh}: DISCONNECTED")
                 else:
                     ssh.error = f"{err.__class__.__name__}"
-                    ssh.logger.error(f"{ssh}: DISCONNECTED: {err.__class__.__name__}: {err}")
+                    ssh.logger.error(
+                        f"{ssh}: DISCONNECTED: {err.__class__.__name__}: {err}"
+                    )
 
                     try:
                         loop = asyncio.get_running_loop()
-                        loop.create_task(ssh.connect(
-                            attempts=RECONNECT_ATTEMPTS,
-                            reconnect_timeout=DEFAULT_RECONNECT_TIMEOUT,
-                        ))
+                        loop.create_task(
+                            ssh.connect(
+                                attempts=RECONNECT_ATTEMPTS,
+                                reconnect_timeout=DEFAULT_RECONNECT_TIMEOUT,
+                            )
+                        )
                     except RuntimeError as err:
                         ssh.logger.critical(f"{ssh}: reconnect error: {err}")
 
     return SSHClient
 
 
-def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[bytes]]:
+def create_session_factory(
+    ssh: SSH, request: CmdRequest
+) -> Type[asyncssh.SSHClientSession[bytes]]:
     class SSHClientSession(asyncssh.SSHClientSession[bytes]):
         def __init__(self) -> None:
             self.start_time = self.time = time()

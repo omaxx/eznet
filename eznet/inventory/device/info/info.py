@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from typing import Awaitable, Callable, Generic, NoReturn, TypeVar
 
-if sys.version_info >= (3,10):
+if sys.version_info >= (3, 10):
     from typing import Concatenate, ParamSpec
 else:
     from typing_extensions import ParamSpec, Concatenate
@@ -40,7 +40,9 @@ class Info(Generic[T, V, P]):
 
 
 def raise_error(xml: Element) -> NoReturn:
-    if (output := xml.find("output")) is not None and (message := output.text) is not None:
+    if (output := xml.find("output")) is not None and (
+        message := output.text
+    ) is not None:
         raise InfoError(message.strip())
     else:
         raise InfoError()

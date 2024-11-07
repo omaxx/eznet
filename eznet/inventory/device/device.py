@@ -12,12 +12,15 @@ from .junos import Junos
 
 IP = Union[str, tuple[str, Optional["Device"]]]
 
+
 class BaseSchema(marshmallow.Schema):
     class Meta:
         unknown = marshmallow.EXCLUDE
 
 
-device_vars_schema = marshmallow_dataclass.class_schema(vars.Device, base_schema=BaseSchema)()
+device_vars_schema = marshmallow_dataclass.class_schema(
+    vars.Device, base_schema=BaseSchema
+)()
 
 
 class Device(Junos):
@@ -50,12 +53,15 @@ class Device(Junos):
         self.vars: vars.Device = device_vars_schema.load(kwargs)
         self.info = info.Device(self)
 
-        ssh_kwargs_type = TypedDict("ssh_kwargs_type", {
-            "user_name": Optional[str],
-            "user_pass": Optional[str],
-            "device_id": str,
-        })
-        ssh_kwargs: ssh_kwargs_type  = dict(
+        ssh_kwargs_type = TypedDict(
+            "ssh_kwargs_type",
+            {
+                "user_name": Optional[str],
+                "user_pass": Optional[str],
+                "device_id": str,
+            },
+        )
+        ssh_kwargs: ssh_kwargs_type = dict(
             user_name=user_name,
             user_pass=user_pass,
             device_id=self.id,

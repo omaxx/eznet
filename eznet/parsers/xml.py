@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional, TypeVar, Union
+from typing import Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
 
 # from lxml.etree import _Element as Element
@@ -10,7 +10,7 @@ K = TypeVar("K")
 V = TypeVar("V")
 
 # RecursiveDict = Union[dict[K, 'RecursiveDict[K, V]'], V]
-RecursiveDict = Union[dict[K, Union[V, 'RecursiveDict[K, V]']]]
+RecursiveDict = Union[dict[K, Union[V, "RecursiveDict[K, V]"]]]
 
 
 class XMLParseError(Exception):
@@ -21,7 +21,9 @@ class XMLParser:
     def __init__(self, indices: Optional[dict[str, str]] = None):
         self.indices = indices or {}
 
-    def __call__(self, xml: Element) -> Union[RecursiveDict[str, Optional[str]], Optional[str]]:
+    def __call__(
+        self, xml: Element
+    ) -> Union[RecursiveDict[str, Optional[str]], Optional[str]]:
         return self.parse(xml)
 
     def parse(
@@ -43,8 +45,12 @@ class XMLParser:
                 index = element.find(index_tag)
                 if index is None:
                     if element.tag in value:
-                        raise XMLParseError(f"Duplicated value for tag: {full_element_tag}")
-                    value[element.tag] = self.parse(element, full_element_tag, index_tag)
+                        raise XMLParseError(
+                            f"Duplicated value for tag: {full_element_tag}"
+                        )
+                    value[element.tag] = self.parse(
+                        element, full_element_tag, index_tag
+                    )
                 else:
                     if element.tag not in value:
                         value[element.tag] = {}
@@ -52,9 +58,13 @@ class XMLParser:
                     if not isinstance(e, dict):
                         raise XMLParseError()
                     if index.text in e:
-                        raise XMLParseError(f"Duplicated value for tag: {full_element_tag} index: {index.text}")
+                        raise XMLParseError(
+                            f"Duplicated value for tag: {full_element_tag} index: {index.text}"
+                        )
                     if index.text is None:
-                        raise XMLParseError(f"Wrong value for tag: {full_element_tag} index: {index.text}")
+                        raise XMLParseError(
+                            f"Wrong value for tag: {full_element_tag} index: {index.text}"
+                        )
                     e[index.text] = self.parse(element, full_element_tag, index_tag)
 
             return value
