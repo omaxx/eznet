@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional, Any, Union, TypeVar
 from datetime import datetime
-
+from typing import Any, Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
+
 # from lxml.etree import _Element as Element
 
 K = TypeVar("K")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import eznet
+
 from .system import System
 
 

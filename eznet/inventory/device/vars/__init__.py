@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from .system import System
 from .interfaces import Interface
+from .system import System
 
 
 @dataclass

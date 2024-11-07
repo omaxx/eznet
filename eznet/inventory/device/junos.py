@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from typing import Optional, Literal, Any, Union
 import json
-import re as regexp
 import logging
-from pathlib import Path
-import string
 import random
+import re as regexp
+import string
+from pathlib import Path
+from typing import Any, Literal, Optional, Union
 from xml.etree import ElementTree
+
+from .drivers.ssh import DEFAULT_CMD_TIMEOUT, SSH
 
 # from lxml import etree
 # from lxml.etree import _Element as Element  # noqa
 
-from .drivers.ssh import DEFAULT_CMD_TIMEOUT, SSH
 
 
 class CommandError(Exception):

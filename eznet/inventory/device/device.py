@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional, Union, TypedDict, Any
 import logging
+from typing import Any, Optional, TypedDict, Union
 
 import marshmallow
 import marshmallow_dataclass
 
-from . import vars
-from . import info
+from . import info, vars
 from .drivers import SSH
 from .junos import Junos
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import sys
-from typing import Generic, TypeVar, Callable, Awaitable, NoReturn
+from typing import Awaitable, Callable, Generic, NoReturn, TypeVar
+
 if sys.version_info >= (3,10):
-    from typing import ParamSpec, Concatenate
+    from typing import Concatenate, ParamSpec
 else:
     from typing_extensions import ParamSpec, Concatenate
+
 from datetime import datetime
 from xml.etree.ElementTree import Element
 

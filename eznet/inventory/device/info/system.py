@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import Optional, NoReturn
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 from xml.etree.ElementTree import Element
 
 import eznet
-from .info import raise_error, Info
-
 from eznet.parsers.xml import text, timestamp
+
+from .info import Info, raise_error
 
 
 @dataclass
