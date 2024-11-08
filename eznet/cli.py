@@ -12,6 +12,8 @@ from rich.console import Console
 
 from eznet import Inventory, Device
 from eznet.logging import create_rich_handler
+from eznet import tables
+
 
 @click.command()
 @click.option(
@@ -61,6 +63,7 @@ def cli(
     async def process(device: Device) -> None:
         async with device.ssh:
             await device.info.system.info()
+            await device.info.system.alarms()
 
     async def main() -> None:
         try:
@@ -75,6 +78,12 @@ def cli(
 
         except KeyboardInterrupt:
             console.print()
+
+        finally:
+            console.print(tables.inventory.DevStatus(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevSummary(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevAlarms(inventory, device_filter=device_filter))
+            console.print(tables.inventory.DevInterfaces(inventory, device_filter=device_filter))
 
     try:
         time_start = datetime.now()
