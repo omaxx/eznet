@@ -7,6 +7,7 @@ import string
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
 from xml.etree import ElementTree
+
 from lxml import etree
 from lxml.etree import _Element as Element  # noqa
 

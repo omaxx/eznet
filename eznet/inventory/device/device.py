@@ -37,7 +37,7 @@ class Device(Junos):
     ) -> None:
         self.name = name
         self.site = site
-        self.id = self.name if self.site is None else f"{self.site},{self.name}"
+        self.id = self.name if self.site is None else f"{self.site}.{self.name}"
 
         if ip is None:
             self.ip: Union[IP, list[IP], dict[str, IP]] = self.name

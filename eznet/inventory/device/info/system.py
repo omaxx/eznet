@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 from xml.etree.ElementTree import Element
+
 from lxml.etree import _Element
 
 import eznet
-from eznet.parsers.xml import text, timestamp, number
+from eznet.parsers.xml import number, text, timestamp
 
 from .info import Info, raise_error
 

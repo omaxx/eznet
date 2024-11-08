@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
+
 from lxml.etree import _Element
 
 K = TypeVar("K")

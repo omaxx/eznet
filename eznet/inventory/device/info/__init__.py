@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import eznet
 
-from .info import Info
-from .system import System
 from .chassis import Chassis
-from .lldp import LLDP
+from .info import Info
 from .interfaces import Interface
+from .lldp import LLDP
+from .system import System
 
 
 class Device:

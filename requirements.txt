@@ -5,8 +5,10 @@ pyyaml
 types-PyYaml
 lxml
 lxml-stubs
-
 marshmallow
 marshmallow-dataclass
 
 asyncssh
+
+click
+rich
