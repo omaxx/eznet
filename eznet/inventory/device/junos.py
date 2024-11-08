@@ -35,9 +35,7 @@ class Junos:
         try:
             output_error = output.split("\n")[1].split(": ", 1)
             if output_error[0] == "error":
-                self.logger.warning(
-                    f"{self}: run_cmd `{cmd}`: ERROR: {output_error[1]}"
-                )
+                self.logger.warning(f"{self}: run_cmd `{cmd}`: ERROR: {output_error[1]}")
                 raise CommandError(f"{output_error[1]}")
         except IndexError:
             pass
@@ -133,9 +131,7 @@ class Junos:
         cmd: str,
         timeout: int = DEFAULT_CMD_TIMEOUT,
     ) -> Optional[str]:
-        output, _ = await self.ssh.execute(
-            f'request app-engine host-cmd "{cmd}"', timeout=timeout
-        )
+        output, _ = await self.ssh.execute(f'request app-engine host-cmd "{cmd}"', timeout=timeout)
         self.check_output_for_errors(cmd, output)
         return output
 
@@ -233,9 +229,7 @@ class Junos:
         if not local_path.exists():
             local_path.mkdir(parents=True)
         local_file_name = remote_path.name
-        tmp_file_name = (
-            "".join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
-        )
+        tmp_file_name = "".join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         if re in ["re0", "both"]:
             await self.run_cmd(
                 f"file copy re0:{remote_path} {tmp_folder}/re0.{tmp_file_name}",
@@ -279,17 +273,10 @@ class Junos:
         if not local_path.exists():
             local_path.mkdir(parents=True)
         if remote_path.is_absolute():
-            local_file_name = (
-                f"{remote_path.relative_to('/')}".replace("/", ".").replace("*", "")
-                + ".tgz"
-            )
+            local_file_name = f"{remote_path.relative_to('/')}".replace("/", ".").replace("*", "") + ".tgz"
         else:
-            local_file_name = (
-                f"{remote_path}".replace("/", ".").replace("*", "") + ".tgz"
-            )
-        tmp_file_name = (
-            "".join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
-        )
+            local_file_name = f"{remote_path}".replace("/", ".").replace("*", "") + ".tgz"
+        tmp_file_name = "".join(random.choices(string.ascii_lowercase, k=4)) + "." + local_file_name
         re_command = {
             "re0": " re0",
             "re1": " re1",
@@ -325,9 +312,7 @@ class Junos:
             await self.run_cmd(f"file delete {tmp_folder}/re1.{tmp_file_name}")
 
         if re == "":
-            await self.ssh.download(
-                f"{tmp_folder}/{tmp_file_name}", f"{local_path}/{local_file_name}"
-            )
+            await self.ssh.download(f"{tmp_folder}/{tmp_file_name}", f"{local_path}/{local_file_name}")
             await self.run_cmd(f"file delete {tmp_folder}/{tmp_file_name}")
 
         return True

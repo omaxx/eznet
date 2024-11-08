@@ -72,11 +72,9 @@ class SSH:
         self.state = State.DISCONNECTED
         self.error: Optional[str] = None
 
-        self.connect_lock: Dict[asyncio.AbstractEventLoop, asyncio.Lock] = defaultdict(
-            asyncio.Lock
-        )
-        self.execute_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
-            defaultdict(lambda: asyncio.Semaphore(MAX_DEVICE_SIMULTANEOUS_EXECUTIONS))
+        self.connect_lock: Dict[asyncio.AbstractEventLoop, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self.execute_semaphore: Dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
+            lambda: asyncio.Semaphore(MAX_DEVICE_SIMULTANEOUS_EXECUTIONS)
         )
 
         self.requests: List[Request] = []
@@ -245,15 +243,11 @@ class SSH:
                 asyncio.TimeoutError,
                 asyncssh.Error,
             ) as err:
-                self.logger.error(
-                    f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}")
                 # self.error = f"{err.__class__.__name__}"
                 raise ExecutionError(self.error)
             except asyncio.CancelledError as err:
-                self.logger.error(
-                    f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: execute `{cmd}`: {err.__class__.__name__}: {err}")
                 raise
             else:
                 self.logger.info(
@@ -261,13 +255,9 @@ class SSH:
                     f"got reply: {len(request.stdout_bytes)} bytes / {len(request.stderr_bytes)} bytes"
                 )
                 if request.stdout:
-                    self.logger.debug(
-                        f"{self}: execute `{cmd}`: stdout:\n{request.stdout}"
-                    )
+                    self.logger.debug(f"{self}: execute `{cmd}`: stdout:\n{request.stdout}")
                 if request.stderr:
-                    self.logger.debug(
-                        f"{self}: execute `{cmd}`: stderr:\n{request.stderr}"
-                    )
+                    self.logger.debug(f"{self}: execute `{cmd}`: stderr:\n{request.stderr}")
 
                 self.requests.remove(request)
                 return request.stdout, request.stderr
@@ -280,9 +270,7 @@ class SSH:
             t0 = t1 = time()
             r1 = 0
 
-            def progress_handler(
-                src_file: bytes, dst_file: bytes, received: int, total: int
-            ) -> None:
+            def progress_handler(src_file: bytes, dst_file: bytes, received: int, total: int) -> None:
                 if dst_file.decode(DEFAULT_ENCODING) not in download_files:
                     download_files.append(dst_file.decode(DEFAULT_ENCODING))
                 nonlocal t0, t1, r1, request
@@ -340,13 +328,9 @@ class SSH:
                 asyncssh.SFTPError,
                 asyncssh.SFTPFailure,
             ) as err:
-                self.logger.error(
-                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}")
             except asyncio.CancelledError as err:
-                self.logger.error(
-                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}")
                 raise
             else:
                 self.logger.info(f"{self}: download `{src}` --> `{dst}`: DONE")
@@ -362,9 +346,7 @@ class SSH:
             t0 = t1 = time()
             r1 = 0
 
-            def progress_handler(
-                src_file: bytes, dst_file: bytes, received: int, total: int
-            ) -> None:
+            def progress_handler(src_file: bytes, dst_file: bytes, received: int, total: int) -> None:
                 if dst_file.decode(DEFAULT_ENCODING) not in upload_files:
                     upload_files.append(dst_file.decode(DEFAULT_ENCODING))
                 nonlocal t0, t1, r1, request
@@ -422,13 +404,9 @@ class SSH:
                 asyncssh.SFTPError,
                 asyncssh.SFTPFailure,
             ) as err:
-                self.logger.error(
-                    f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}")
             except asyncio.CancelledError as err:
-                self.logger.error(
-                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
-                )
+                self.logger.error(f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}")
                 raise
             else:
                 self.logger.info(f"{self}: upload `{src}` --> `{dst}`: DONE")
@@ -460,18 +438,14 @@ class CmdRequest(Request):
 
 
 class FileRequest(Request):
-    def __init__(
-        self, file_name: Union[str, Path], received_bytes: int = 0, total_bytes: int = 0
-    ):
+    def __init__(self, file_name: Union[str, Path], received_bytes: int = 0, total_bytes: int = 0):
         self.file_name = file_name
         self.received_bytes = received_bytes
         self.total_bytes = total_bytes
         self.speed: float = 0
 
     def __repr__(self) -> str:
-        received_part = (
-            self.received_bytes / self.total_bytes if self.total_bytes > 0 else 1
-        )
+        received_part = self.received_bytes / self.total_bytes if self.total_bytes > 0 else 1
         return (
             f"{self.file_name}\t"
             f"{self.received_bytes:,}\tof\t{self.total_bytes:,}\t"
@@ -491,9 +465,7 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
                     ssh.logger.info(f"{ssh}: DISCONNECTED")
                 else:
                     ssh.error = f"{err.__class__.__name__}"
-                    ssh.logger.error(
-                        f"{ssh}: DISCONNECTED: {err.__class__.__name__}: {err}"
-                    )
+                    ssh.logger.error(f"{ssh}: DISCONNECTED: {err.__class__.__name__}: {err}")
 
                     try:
                         loop = asyncio.get_running_loop()
@@ -509,9 +481,7 @@ def create_client_factory(ssh: SSH) -> Type[asyncssh.SSHClient]:
     return SSHClient
 
 
-def create_session_factory(
-    ssh: SSH, request: CmdRequest
-) -> Type[asyncssh.SSHClientSession[bytes]]:
+def create_session_factory(ssh: SSH, request: CmdRequest) -> Type[asyncssh.SSHClientSession[bytes]]:
     class SSHClientSession(asyncssh.SSHClientSession[bytes]):
         def __init__(self) -> None:
             self.start_time = self.time = time()

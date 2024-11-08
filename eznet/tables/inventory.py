@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Iterable, Tuple, Callable, Dict, Any
+from typing import Any, Callable, Iterable
 
+from eznet import Device, Inventory, tables
 from eznet.table import Table, calc
-from eznet import Inventory, Device
-from eznet import tables
 
 __all__ = ["DevStatus", "DevInterfaces"]
 
@@ -23,8 +22,8 @@ class DevStatus(Table):
         inventory: Inventory,
         device_filter: Callable[[Device], bool] = lambda _: True,
     ) -> None:
-        def main() -> Iterable[Dict[str, Any]]:
-            for device in inventory.devices.values():
+        def main() -> Iterable[dict[str, Any]]:
+            for device in inventory.devices:
                 if device_filter(device):
                     yield dict(
                         device=device.id,
@@ -32,11 +31,12 @@ class DevStatus(Table):
                         ssh_user=calc(lambda: device.ssh.user_name),
                         ssh_error=calc(lambda: device.ssh.error, None),
                         info_hostname=calc(
-                            lambda: device.info.system.info[0].hostname,
+                            lambda: device.info.system.info().hostname,
                             device.name,
                             lambda v, r: r.lower() in v.lower(),
                         ),
                     )
+
         super().__init__(main)
 
 
@@ -55,17 +55,18 @@ class DevSummary(Table):
         inventory: Inventory,
         device_filter: Callable[[Device], bool] = lambda _: True,
     ) -> None:
-        def main() -> Iterable[Dict[str, Any]]:
-            for device in inventory.devices.values():
+        def main() -> Iterable[dict[str, Any]]:
+            for device in inventory.devices:
                 if device_filter(device):
                     yield dict(
                         device=device.id,
-                        hostname=calc(lambda: device.info.system.info[0].hostname),
-                        family=calc(lambda: device.info.system.info[0].sw_family),
-                        version=calc(lambda: device.info.system.info[0].sw_version),
-                        model=calc(lambda: device.info.system.info[0].hw_model),
-                        sn=calc(lambda: device.info.system.info[0].hw_sn),
+                        hostname=calc(lambda: device.info.system.info().hostname),
+                        family=calc(lambda: device.info.system.info().sw_family),
+                        version=calc(lambda: device.info.system.info().sw_version),
+                        model=calc(lambda: device.info.system.info().hw_model),
+                        sn=calc(lambda: device.info.system.info().hw_sn),
                     )
+
         super().__init__(main)
 
 
@@ -80,12 +81,13 @@ class DevInterfaces(Table):
         inventory: Inventory,
         device_filter: Callable[[Device], bool] = lambda _: True,
     ) -> None:
-        def main() -> Iterable[Tuple[Dict[str, Any], Table]]:
-            for device in inventory.devices.values():
+        def main() -> Iterable[tuple[dict[str, Any], Table]]:
+            for device in inventory.devices:
                 if device_filter(device):
                     yield dict(
                         device=device.id,
                     ), tables.device.Interfaces(inventory, device)
+
         super().__init__(main)
 
 
@@ -100,10 +102,11 @@ class DevAlarms(Table):
         inventory: Inventory,
         device_filter: Callable[[Device], bool] = lambda _: True,
     ) -> None:
-        def main() -> Iterable[Tuple[Dict[str, Any], Table]]:
-            for device in inventory.devices.values():
+        def main() -> Iterable[tuple[dict[str, Any], Table]]:
+            for device in inventory.devices:
                 if device_filter(device):
                     yield dict(
                         device=device.id,
                     ), tables.device.Alarms(inventory, device)
+
         super().__init__(main)

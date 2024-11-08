@@ -1,13 +1,11 @@
 import logging
 from pathlib import Path
-from typing import Union, Optional, List
+from typing import Optional, Union
 
 from rich.console import Console
 from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 from rich.theme import Theme
-
-from eznet import Device
 
 MODULE = __name__.split(".")[0]
 
@@ -54,9 +52,7 @@ def create_rich_handler(
     return handler
 
 
-def create_file_handler(
-    file: Union[str, Path], level: int = logging.INFO
-) -> logging.Handler:
+def create_file_handler(file: Union[str, Path], level: int = logging.INFO) -> logging.Handler:
     if not isinstance(file, Path):
         file = Path(file)
     file.expanduser()

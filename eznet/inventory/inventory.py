@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Union
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
 
+import fnmatch
 import json
 from collections import defaultdict
 
@@ -17,6 +18,7 @@ import yaml
 
 try:
     import _jsonnet
+
     JSONNET = True
 except ImportError:
     JSONNET = False
@@ -26,9 +28,32 @@ from .device import Device
 logger = logging.getLogger("eznet.inventory")
 
 
+class Devices:
+    def __init__(self) -> None:
+        self.data: dict[str, Device] = {}
+
+    def __iter__(self) -> Iterator[Device]:
+        for device in self.data.values():
+            yield device
+
+    def add(self, device: Device) -> None:
+        if device.id not in self.data:
+            self.data[device.id] = device
+        else:
+            logger.error(f"Load error: Duplicate device with {device.id}")
+
+    def __getitem__(self, item: str) -> Device:
+        return self.data[item]
+
+    def __call__(self, device_id: str = "*") -> Iterator[Device]:
+        for device in self.data.values():
+            if fnmatch.fnmatch(device.id, device_id):
+                yield device
+
+
 class Inventory:
     def __init__(self) -> None:
-        self.devices: dict[str, Device] = {}
+        self.devices = Devices()
 
     def load(self, path: Union[str, Path]) -> Self:
         if not isinstance(path, Path):
@@ -82,27 +107,22 @@ class Inventory:
 
     def imp0rt(self, data: dict[str, Any], site: Optional[str] = None) -> None:
         devices: list[dict[Any, Any]] = data.get("devices", [])
-        if not isinstance(devices, list):
-            return
-        for device_data in devices:
-            device_data.setdefault("site", site)
-            device = Device(**device_data)
-            if device.id in self.devices:
-                logger.error(f"Load error: Duplicate device with {device.id}")
-            else:
-                self.devices[device.id] = device
+        if isinstance(devices, list):
+            for device_data in devices:
+                device_data.setdefault("site", site)
+                self.devices.add(Device(**device_data))
 
     @property
     def sites(self) -> dict[Union[str, None], dict[str, Device]]:
         sites: dict[Union[str, None], dict[str, Device]] = defaultdict(dict)
-        for device_id, device in self.devices.items():
-            sites[device.site][device_id] = device
+        for device in self.devices:
+            sites[device.site][device.id] = device
         return sites
 
     def export_as_rundeck(self) -> str:
-        return yaml.safe_dump({
-            device.id: {
-                "nodename": device.id,
-                **({"hostname": device.ssh.host} if device.ssh is not None else {})
-            } for device in self.devices.values()
-        })
+        return yaml.safe_dump(
+            {
+                device.id: {"nodename": device.id, **({"hostname": device.ssh.host} if device.ssh is not None else {})}
+                for device in self.devices
+            }
+        )

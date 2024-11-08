@@ -58,6 +58,7 @@ class Port:
             wavelength=text(port, "wavelength"),
         )
 
+
 @dataclass
 class PIC:
     state: Optional[str]
@@ -156,8 +157,7 @@ class FW:
         show_chassis_fw = await device.run_xml_cmd("show chassis firmware")
         if (fw_info := show_chassis_fw.find("firmware-information/chassis")) is not None:
             return {
-                int(fpc[4:]):
-                FW.from_xml(e)
+                int(fpc[4:]): FW.from_xml(e)
                 for e in fw_info.findall("chassis-module")
                 if "FPC " in (fpc := text(e, "name") or "")
             }
@@ -187,10 +187,7 @@ class Alarm:
             "show chassis alarms",
         )
         if (alarm_info := xml.find("alarm-information")) is not None:
-            return [
-                Alarm.from_xml(alarm)
-                for alarm in alarm_info.findall("alarm-detail")
-            ]
+            return [Alarm.from_xml(alarm) for alarm in alarm_info.findall("alarm-detail")]
         else:
             raise_error(xml)
 

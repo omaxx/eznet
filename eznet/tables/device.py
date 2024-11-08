@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Iterable, Tuple, Dict, Any
+from typing import Any, Iterable
 
+from eznet import Device, Inventory
 from eznet.table import Table, calc
-from eznet import Inventory, Device
 
 __all__ = ["Interfaces", "Members"]
 
 
 def interface_state(device: Device, interface_name: str) -> str:
-    interfaces_info = device.info.interfaces[0]
+    interfaces_info = device.info.interfaces()
     if interface_name not in interfaces_info:
         return "absent"
     if interfaces_info[interface_name].admin == "down":
@@ -28,16 +28,17 @@ class Members(Table):
     ]
 
     def __init__(self, inventory: Inventory, device: Device, interface_name: str) -> None:
-        def main() -> Iterable[Dict[str, Any]]:
+        def main() -> Iterable[dict[str, Any]]:
             for member_name, member in device.vars.interfaces[interface_name].members.items():
                 yield dict(
                     member=member_name,
                     state=calc(lambda: interface_state(device, member_name), "up"),
-                    vars_peer_device=calc(lambda: member.peer.device),
+                    vars_peer_device=calc(lambda: member.peer.device),  # type: ignore
                     # info_peer_device=calc(ref=lambda: member.peer.device),
-                    vars_peer_interface=calc(lambda: member.peer.interface),
+                    vars_peer_interface=calc(lambda: member.peer.interface),  # type: ignore
                     # info_peer_interface=calc(ref=lambda: member.peer.interface),
                 )
+
         super().__init__(main)
 
 
@@ -49,30 +50,27 @@ class Interfaces(Table):
     TABLE = Members
 
     def __init__(self, inventory: Inventory, device: Device):
-        def main() -> Iterable[Tuple[Dict[str, Any], Members]]:
+        def main() -> Iterable[tuple[dict[str, Any], Members]]:
             for interface_name, interface in device.vars.interfaces.items():
                 yield dict(
                     interface=interface_name,
                     state=calc(lambda: interface_state(device, interface_name), "up"),
                 ), Members(inventory, device, interface_name)
+
         super().__init__(main)
 
 
 class Alarms(Table):
-    FIELDS = [
-        "ts",
-        "cls",
-        "description",
-        "type"
-    ]
+    FIELDS = ["ts", "cls", "description", "type"]
 
     def __init__(self, inventory: Inventory, device: Device):
-        def main() -> Iterable[Dict[str, Any]]:
-            for alarm in device.info.system.alarms[0]:
+        def main() -> Iterable[dict[str, Any]]:
+            for alarm in device.info.system.alarms():
                 yield dict(
                     ts=alarm.ts,
                     cls=calc(alarm.cls, ["Major"], lambda v, r: v not in r),
                     description=alarm.description,
                     type=alarm.type,
                 )
+
         super().__init__(main)

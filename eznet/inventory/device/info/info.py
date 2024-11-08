@@ -30,19 +30,20 @@ class Info(Generic[T, V, P]):
         self.target = target
         self.fetcher = fetcher
 
-    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> V:
+    async def fetch(self, *args: P.args, **kwargs: P.kwargs) -> V:
         data = await self.fetcher(self.target, *args, **kwargs)
         self.data.insert(0, (data, datetime.now()))
         return data
 
-    def __getitem__(self, item: int) -> V:
+    def __call__(self, item: int = 0) -> V:
         return self.data[item][0]
+
+    def __getitem__(self, item: int) -> tuple[V, datetime]:
+        return self.data[item]
 
 
 def raise_error(xml: Element) -> NoReturn:
-    if (output := xml.find("output")) is not None and (
-        message := output.text
-    ) is not None:
+    if (output := xml.find("output")) is not None and (message := output.text) is not None:
         raise InfoError(message.strip())
     else:
         raise InfoError()

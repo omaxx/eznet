@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import logging
 from enum import Enum, auto
-from typing import TypeVar, Generic, Union, Optional, Callable, Any, List, Iterable, Dict, ClassVar, Type, Tuple
+from typing import Any, Callable, ClassVar, Generic, Iterable, Optional, Type, TypeVar, Union
 
 from rich.console import RichCast
-from rich.text import Text
 from rich.table import Table as RichTable
+from rich.text import Text
 from rich.tree import Tree as RichTree
 
 logger = logging.getLogger(__name__)
 
-V = TypeVar('V')
+V = TypeVar("V")
 
 
 class NoInfo(Exception):
@@ -98,34 +98,32 @@ def calc(
 
 
 class Table:
-    FIELDS: ClassVar[List[str]] = []
+    FIELDS: ClassVar[list[str]] = []
     TABLE: ClassVar[Optional[Type[Table]]] = None
 
     @classmethod
-    def fields(cls) -> List[str]:
+    def fields(cls) -> list[str]:
         if cls.TABLE is None:
             return [field for field in cls.FIELDS]
         else:
             return [field for field in cls.FIELDS] + cls.TABLE.fields()
 
     @classmethod
-    def headers(cls) -> Dict[str, str]:
+    def headers(cls) -> dict[str, str]:
         if cls.TABLE is None:
             return {field: field for field in cls.FIELDS}
         else:
             return {**{field: field for field in cls.FIELDS}, **cls.TABLE.headers()}
 
-    def __init__(self, main: Callable[[], Iterable[Union[Dict[str, Any], Tuple[Dict[str, Any], Table]]]]) -> None:
+    def __init__(self, main: Callable[[], Iterable[Union[dict[str, Any], tuple[dict[str, Any], Table]]]]) -> None:
         try:
-            self.rows = [
-                row for row in main()
-            ]
-        except:
+            self.rows = [row for row in main()]
+        except:  # noqa
             self.rows = None
 
-    rows: Optional[List[Union[Dict[str, Any], Tuple[Dict[str, Any], Table]]]] = None
+    rows: Optional[list[Union[dict[str, Any], tuple[dict[str, Any], Table]]]] = None
 
-    def values(self) -> Iterable[Dict[str, Any]]:
+    def values(self) -> Iterable[dict[str, Any]]:
         if self.rows is None:
             return
         for row in self.rows:
@@ -142,7 +140,7 @@ class Table:
                 else:
                     yield {
                         **{field: row.get(field, "") for field in self.FIELDS},
-                        **{field: Value(v=None, status=Value.Status.NONE) for field in table.fields()}
+                        **{field: Value(v=None, status=Value.Status.NONE) for field in table.fields()},
                     }
 
             else:
@@ -188,23 +186,19 @@ class Check:
         Status.SUB_FAIL: "red",
         Status.ERROR: "bold italic red",
         Status.SUB_ERROR: "italic red",
-        Status.FATAL: "bold red reverse"
+        Status.FATAL: "bold red reverse",
     }
 
     DEFAULT_STYLE = ""
 
     status: Status
-    sub_checks: List[Check]
+    sub_checks: list[Check]
 
     def __rich__(self) -> RichTree:
         table = RichTable.grid(expand=True)
         table.add_column()
         table.add_column(justify="right")
-        table.add_row(
-            f"{self.__class__}",
-            f"{self.status}",
-            style=self.STYLES.get(self.status, self.DEFAULT_STYLE)
-        )
+        table.add_row(f"{self.__class__}", f"{self.status}", style=self.STYLES.get(self.status, self.DEFAULT_STYLE))
         tree = RichTree(table)
         for check in self.sub_checks:
             tree.add(check)

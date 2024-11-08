@@ -18,9 +18,7 @@ class BaseSchema(marshmallow.Schema):
         unknown = marshmallow.EXCLUDE
 
 
-device_vars_schema = marshmallow_dataclass.class_schema(
-    vars.Device, base_schema=BaseSchema
-)()
+device_vars_schema = marshmallow_dataclass.class_schema(vars.Device, base_schema=BaseSchema)()
 
 
 class Device(Junos):

@@ -64,9 +64,7 @@ class Alarm:
             "show system alarms",
         )
         if (alarm_info := xml.find("alarm-information")) is not None:
-            return [
-                Alarm.from_xml(alarm) for alarm in alarm_info.findall("alarm-detail")
-            ]
+            return [Alarm.from_xml(alarm) for alarm in alarm_info.findall("alarm-detail")]
         else:
             return raise_error(xml)
 
@@ -136,9 +134,7 @@ class Uptime:
         else:
             xml = await device.run_xml_cmd("show system uptime invoke-on all-routing-engines")
         if (system_uptime := xml.find("system-uptime-information")) is not None:
-            return {
-                "localre": Uptime.from_xml(system_uptime)
-            }
+            return {"localre": Uptime.from_xml(system_uptime)}
         elif (mre_results := xml.find("multi-routing-engine-results")) is not None:
             return {
                 re_name: Uptime.from_xml(sw_uptime_info)
@@ -179,8 +175,7 @@ class CoreDump:
                 "show system core-dumps routing-engine both",
             )
         return [
-            CoreDump.from_xml(file_info)
-            for file_info in xml.findall(".//directory-list/directory/file-information")
+            CoreDump.from_xml(file_info) for file_info in xml.findall(".//directory-list/directory/file-information")
         ]
 
 
@@ -190,4 +185,4 @@ class System:
         self.alarms = Info(device, Alarm.fetch)
         self.sw = Info(device, SW.fetch)
         self.uptime = Info(device, Uptime.fetch)
-        self.core_dumps = Info(device, CoreDump.fetch)
+        self.coredumps = Info(device, CoreDump.fetch)

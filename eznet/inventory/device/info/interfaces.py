@@ -87,7 +87,7 @@ class Interface:
 
     @staticmethod
     def from_xml(xml: Element) -> Interface:
-        ae = text(xml, "logical-interface/address-family[address-family-name=\"aenet\"]ae-bundle-name")
+        ae = text(xml, 'logical-interface/address-family[address-family-name="aenet"]ae-bundle-name')
         if ae is not None:
             ae = ae.split(".")[0]
         return Interface(
@@ -115,7 +115,7 @@ class Interface:
             return {
                 name: Interface.from_xml(e)
                 for e in interface_information.findall("physical-interface")
-                if (name := text(e, "name")) is not None # and name_filter(name)
+                if (name := text(e, "name")) is not None  # and name_filter(name)
             }
         else:
             raise_error(show_interfaces)
