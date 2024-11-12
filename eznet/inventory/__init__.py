@@ -8,7 +8,7 @@ import json
 from collections import defaultdict
 
 import yaml
-import _jsonnet
+# import _jsonnet
 
 from .device import Device
 
@@ -59,15 +59,15 @@ class Inventory:
                     )
             except Exception as exc:
                 logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
-        elif path.suffix == ".jsonnet":
-            logger.info(f"inventory: load from {path}")
-            try:
-                self.imp0rt(
-                    json.loads(_jsonnet.evaluate_file(f"{path}")),
-                    site=path.with_suffix("").name,
-                )
-            except Exception as exc:
-                logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
+        # elif path.suffix == ".jsonnet":
+        #     logger.info(f"inventory: load from {path}")
+        #     try:
+        #         self.imp0rt(
+        #             json.loads(_jsonnet.evaluate_file(f"{path}")),
+        #             site=path.with_suffix("").name,
+        #         )
+        #     except Exception as exc:
+        #         logger.error(f"inventory: load from {path}: {exc.__class__.__name__}: {exc}")
         else:
             logger.error(f"unknown inventory file format {path.suffix[1:]}")
 

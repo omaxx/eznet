@@ -6,10 +6,8 @@ marshmallow
 marshmallow-dataclass
 lxml
 lxml-stubs
-jsonnet
 
 asyncssh
 
 click
 rich
-pathlib3x
