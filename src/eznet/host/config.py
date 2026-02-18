@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
+import os
+from pathlib import Path
+
 from mashumaro.mixins.dict import DataClassDictMixin
 import yaml
 
@@ -24,11 +28,34 @@ class UserData(DataClassDictMixin):
 class NetworkConfig(DataClassDictMixin):
     @dataclass
     class Ethernet:
-        dhcp4: bool
+        dhcp4: bool = False
         addresses: list[str] = field(default_factory=list)
 
-    version: int = field(init=False, default=2)
-    ethernets: dict[str, Ethernet]
+    version: Literal[2] = 2
+    ethernets: dict[str, Ethernet] = field(default_factory=list)
 
     def __str__(self) -> str:
         return "#network-config\n" + yaml.safe_dump({"network": self.to_dict()})
+
+
+def user_data() -> UserData:
+    return UserData(
+        users=[
+            UserData.User(
+                name=os.getenv("USER"),
+                groups=["sudo"],
+                shell="/bin/bash",
+                sudo=['ALL=(ALL) NOPASSWD:ALL'],
+                ssh_authorized_keys=[Path("~/.ssh/id_rsa.pub").expanduser().read_text().strip()],
+            )
+        ]
+    )
+
+
+def network_config(*ip: str) -> NetworkConfig:
+    return NetworkConfig(
+        ethernets={
+            f"enp{i+1}s0": NetworkConfig.Ethernet(addresses=[address])
+            for i, address in enumerate(ip)
+        }
+    )

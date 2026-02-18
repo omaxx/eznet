@@ -13,8 +13,12 @@ from time import time
 from typing import Callable
 
 import asyncssh
+from rich.console import Console
 
 from eznet.utils import Singleton
+
+
+console = Console()
 
 
 @dataclass
@@ -275,13 +279,13 @@ class SSH:
                     create_session_factory(
                         self,
                         execution,
-                        stdout_received_callback=lambda data: print(data.decode(), end="", flush=True),
-                        stderr_received_callback=lambda data: print(data.decode(), end="", flush=True),
+                        stdout_received_callback=lambda data: console.print(data.decode(), end="", style="italic"),
+                        stderr_received_callback=lambda data: console.print(data.decode(), end="", style="red italic"),
                     ),
                     cmd,
                     encoding=None,
                 )
-                print(cmd, end="", flush=True)
+                console.print(cmd, style="bold")
                 self.logger.info(f"{self}: execute `{cmd}`")
                 if stdin is not None:
                     chan.write(stdin.encode(settings.DEFAULT_ENCODING))

@@ -6,10 +6,12 @@ import asyncio
 import functools
 import logging
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import libvirt
 
 from eznet.drivers.ssh import SSH
+from .vm import VLAB_NS
 
 TCP_URI = "qemu+tcp://127.0.0.1:{port}/system"
 LIBVIRT_PORT = 16509
@@ -31,10 +33,21 @@ def sync_to_async(
     return wrapper
 
 
+def get_vlab_metadata(dom: libvirt.virDomain) -> str | None:
+    try:
+        xml = dom.metadata(libvirt.VIR_DOMAIN_METADATA_ELEMENT, VLAB_NS)
+        root = ET.fromstring(xml)
+        node_name = node.text if (node := root.find("node")) is not None else None
+        return node_name
+    except libvirt.libvirtError:
+        return None
+
+
 @dataclass
 class VM:
     name: str
     active: bool
+    node_name: str | None = None
 
 
 @dataclass
@@ -192,14 +205,16 @@ class Qemu:
             logger.warning(f"Vnet `{name}` not found")
 
 
-    async def list_vms(self) -> list[VM]:
+    async def list_vms(self, node_name: str | None = None) -> list[VM]:
         def sync():
             return [
                 VM(
                     name=domain.name(),
-                    active=domain.isActive()
+                    active=domain.isActive(),
+                    node_name=node_name if node_name is not None else get_vlab_metadata(domain),
                 )
                 for domain in self._virt.listAllDomains()
+                if node_name is None or get_vlab_metadata(domain) == node_name
             ]
         return await asyncio.to_thread(sync)
 
