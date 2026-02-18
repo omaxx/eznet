@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Literal
-from xml.etree.ElementTree import Element, SubElement, tostring, indent
+from xml.etree.ElementTree import Element, SubElement, tostring, indent, register_namespace
+
+VLAB_NS = "http://eznet/vlab/1.0"
+register_namespace("vlab", VLAB_NS)
 
 
 @dataclass
@@ -60,7 +63,7 @@ class VNet:
     mode: Literal["nat", "route", "open", "bridge"] | None = None
     bridge: str | None = None
     ip: IP | None = None
-    domain: str | None = None
+    node: str | None = None
 
     def xml(self) -> str:
         root = self._build_network()
@@ -72,14 +75,16 @@ class VNet:
 
         SubElement(network, "name").text = self.name
 
+        meta = SubElement(network, "metadata")
+        instance = SubElement(meta, f"{{{VLAB_NS}}}instance")
+        if self.node is not None:
+            SubElement(instance, f"{{{VLAB_NS}}}node").text = self.node
+
         if self.bridge is not None:
             SubElement(network, "bridge", name=self.bridge)
 
         if self.mode is not None:
             SubElement(network, "forward", mode=self.mode)
-
-        if self.domain is not None:
-            SubElement(network, "domain", name=self.domain)
 
         if self.ip is not None:
             network.append(self.ip.xml())

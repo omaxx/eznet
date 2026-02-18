@@ -66,6 +66,7 @@ class Linux(Node):
             "-volid cidata",
             "-rational-rock",
             "-joliet",
+            "-input-charset utf-8",
             f"-output {path}/seed.img",
             " ".join(f"{path}/{file}" for file in files),
         ]))
@@ -79,14 +80,14 @@ class Linux(Node):
                 vcpus=self.vcpus,
                 memory_mb=self.memory_mb,
                 disks=[
-                    Disk(path=images_path / self.image, target="vda", format="qcow2"),
+                    Disk(path=images_path / self.image, target="vda", format="qcow2", snapshot=True),
                     Disk(path=Path("seed.img") , target="vdb", format="raw"),
                 ],
                 interfaces=[
                     Interface(type=interface.type, source=interface.name, target=f"{self.name}-{i}")
                     for i, interface in enumerate(self.interfaces)
                 ],
-                metadata={"node": self.name},
+                node=self.name,
             )
         ]
 
@@ -98,9 +99,9 @@ class vMX(Node):
     re_image: str
     fpc_image: str
     re_memory_mb: int = 1024
-    re_vcpu: int = 1
+    re_vcpus: int = 1
     fpc_memory_mb: int = 2048
-    fpc_vcpu: int = 3
+    fpc_vcpus: int = 3
     double_re: bool = False
     config: str | None = None
 
@@ -110,8 +111,10 @@ class vMX(Node):
             VM(
                 name=f"{self.name}~re{slot}",
                 path = vlab.vms_path / self.name / f"re{slot}",
+                vcpus=self.re_vcpus,
+                memory_mb=self.re_memory_mb,
                 disks=[
-                    Disk(path = images_path / self.re_image, target="vda"),
+                    Disk(path = images_path / self.re_image, target="vda", snapshot=True),
                     Disk(path = images_path / "vmxhdd.img", target="vdb"),
                     Disk(
                         path = images_path / f"metadata-usb-re{slot}.img",
@@ -123,13 +126,16 @@ class vMX(Node):
                     Interface("network", source="mgmt", target=f"{self.name}~re{slot}~mgmt"),
                     Interface("network", source=f"{self.name}~int", target=f"{self.name}~re{slot}~int"),
                 ],
-                metadata={"node": self.name},
+                node=self.name,
             )
-            for slot in [0, 1]
+            for slot in [0, ]
         ] + [
             VM(
                 name=f"{self.name}~fpc{slot}",
+                machine="pc",
                 path = vlab.vms_path / self.name / f"fpc{slot}",
+                vcpus=self.fpc_vcpus,
+                memory_mb=self.fpc_memory_mb,
                 disks=[
                     Disk(
                         path = images_path / self.fpc_image,
@@ -149,22 +155,24 @@ class vMX(Node):
                     Interface("network", source=f"{self.name}~int", target=f"{self.name}~fpc{slot}~int"),
                     Interface("network", source=f"{self.name}~fab", target=f"{self.name}~fpc{slot}~fab"),
                 ] + [
-                    Interface(type=interface.type, source=interface.name, target=f"{self.name}-{i}")
+                    Interface(type=interface.type, source=interface.name, target=f"{self.name}-{slot}-{i}")
                     for i, interface in enumerate(self.interfaces)
                 ],
-                metadata={"node": self.name},
+                node=self.name,
             )
-            for slot in [0, 1]
+            for slot in [0, ]
         ]
 
     def vnets(self, vlab: VLab) -> list[VNet]:
         return [
-            VNet(name=f"{self.name}~int"),
-            VNet(name=f"{self.name}~fab"),
+            VNet(name=f"{self.name}~int", node=self.name),
+            VNet(name=f"{self.name}~fab", node=self.name),
         ]
 
     async def init(self, vlab: VLab):
-        for re in ["re0", "re1"]:
+        if self.config is None:
+            return
+        for re in ["re0", ]:
             hdd_image = vlab.vms_path / self.name / re / "hdd.img"
 
             staging_dir = (await vlab.host.run("mktemp -d")).stdout.strip()

@@ -15,7 +15,7 @@ class Disk:
     format: Literal["qcow2", "raw"] = "qcow2"
     bus: Literal["virtio", "scsi", "sata", "ide", "usb"] = "virtio"
     device: Literal["disk", "cdrom"] = "disk"
-    copy: Literal["copy", "snapshot"] = "copy"
+    snapshot: bool = False
 
     def xml(self, path: Path) -> Element:
         elem = Element("disk", type="file", device=self.device)
@@ -96,12 +96,12 @@ class VM:
     interfaces: list[Interface] = field(default_factory=list)
     graphics: Graphics = field(default_factory=Graphics)
     arch: Literal["x86_64", "aarch64"] = "x86_64"
-    machine: str = "pc-q35-10.0"
+    machine: str = "q35"
     cpu_mode: Literal[
         "host-passthrough", "host-model", "custom"
     ] = "host-passthrough"
     emulator: str = "/usr/bin/qemu-system-x86_64"
-    metadata: dict[str, str] = field(default_factory=dict)
+    node: str | None = None
 
     def xml(self) -> str:
         root = self._build_domain()
@@ -112,11 +112,11 @@ class VM:
         domain = Element("domain", type="kvm")
 
         SubElement(domain, "name").text = self.name
-        if self.metadata:
-            meta = SubElement(domain, "metadata")
-            instance = SubElement(meta, f"{{{VLAB_NS}}}instance")
-            for key, value in self.metadata.items():
-                SubElement(instance, f"{{{VLAB_NS}}}{key}").text = value
+
+        meta = SubElement(domain, "metadata")
+        instance = SubElement(meta, f"{{{VLAB_NS}}}instance")
+        if self.node is not None:
+            SubElement(instance, f"{{{VLAB_NS}}}node").text = self.node
 
         SubElement(domain, "memory", unit="MiB").text = str(self.memory_mb)
         SubElement(domain, "vcpu", placement="static").text = str(self.vcpus)
@@ -194,7 +194,7 @@ class VM:
         video = SubElement(devices, "video")
         SubElement(video, "model", type="virtio", heads="1", primary="yes")
 
-        SubElement(devices, "watchdog", model="itco", action="reset")
+        # SubElement(devices, "watchdog", model="itco", action="reset")
         SubElement(devices, "memballoon", model="virtio")
 
         rng = SubElement(devices, "rng", model="virtio")

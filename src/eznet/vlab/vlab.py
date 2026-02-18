@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from eznet.host import Host
-from eznet.vlab.nodes import Node
+from eznet.vlab.nodes import Node, Network
 
 
 DEFAULT_BASE_PATH = "/var/vlab"
@@ -50,21 +50,30 @@ class VLab:
             await self.host.mkdir(vm.path)
             for disk in vm.disks:
                 if disk.path.is_absolute():
-                    await self.copy(disk.path, vm.path / disk.path.name)
+                    if disk.snapshot:
+                        await self.make_snapshot(disk.path, vm.path / disk.path.name)
+                    else:
+                        await self.copy(disk.path, vm.path / disk.path.name)
             await self.host.qemu.define_vm(vm.name, vm.xml())
         for vnet in node.vnets(self):
             await self.host.qemu.define_vnet(vnet.name, vnet.xml())
         await node.init(self)
 
     async def start(self, node_name: str) -> None:
+        for vnet in await self.host.qemu.list_vnets(node_name=node_name):
+            await self.host.qemu.start_vnet(vnet.name)
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.start_vm(vm.name)
 
     async def stop(self, node_name: str) -> None:
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.stop_vm(vm.name)
+        for vnet in await self.host.qemu.list_vnets(node_name=node_name):
+            await self.host.qemu.stop_vnet(vnet.name)
 
     async def delete(self, node_name: str) -> None:
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.undefine_vm(vm.name)
         await self.host.rmdir(self.vms_path / node_name)
+        for vnet in await self.host.qemu.list_vnets(node_name=node_name):
+            await self.host.qemu.undefine_vnet(vnet.name)

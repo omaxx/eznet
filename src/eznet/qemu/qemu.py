@@ -33,12 +33,12 @@ def sync_to_async(
     return wrapper
 
 
-def get_vlab_metadata(dom: libvirt.virDomain) -> str | None:
+def get_node_name(obj: libvirt.virDomain | libvirt.virNetwork) -> str | None:
     try:
-        xml = dom.metadata(libvirt.VIR_DOMAIN_METADATA_ELEMENT, VLAB_NS)
+        xml = obj.metadata(libvirt.VIR_DOMAIN_METADATA_ELEMENT, VLAB_NS)
         root = ET.fromstring(xml)
-        node_name = node.text if (node := root.find("node")) is not None else None
-        return node_name
+        node = node.text if (node := root.find("node")) is not None else None
+        return node
     except libvirt.libvirtError:
         return None
 
@@ -54,6 +54,7 @@ class VM:
 class VNet:
     name: str
     active: bool
+    node_name: str | None = None
 
 
 class Qemu:
@@ -211,20 +212,22 @@ class Qemu:
                 VM(
                     name=domain.name(),
                     active=domain.isActive(),
-                    node_name=node_name if node_name is not None else get_vlab_metadata(domain),
+                    node_name=node_name if node_name is not None else get_node_name(domain),
                 )
                 for domain in self._virt.listAllDomains()
-                if node_name is None or get_vlab_metadata(domain) == node_name
+                if node_name is None or get_node_name(domain) == node_name
             ]
         return await asyncio.to_thread(sync)
 
-    async def list_vnets(self) -> list[VNet]:
+    async def list_vnets(self, node_name: str | None = None) -> list[VNet]:
         def sync():
             return [
                 VNet(
                     name=network.name(),
                     active=network.isActive(),
+                    node_name=node_name if node_name is not None else get_node_name(network),
                 )
                 for network in self._virt.listAllNetworks()
+                if node_name is None or get_node_name(network) == node_name
             ]
         return await asyncio.to_thread(sync)
