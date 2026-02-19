@@ -21,6 +21,7 @@ class Bridge:
     def type(self) -> Literal["bridge"]:
         return "bridge"
 
+
 @dataclass
 class Network:
     name: str
@@ -28,6 +29,12 @@ class Network:
     @property
     def type(self) -> Literal["network"]:
         return "network"
+
+    def vnet(self) -> VNet:
+        return VNet(
+            name=self.name,
+            bridge=self.name,
+        )
 
 
 @dataclass

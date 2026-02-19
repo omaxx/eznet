@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 
 from eznet.host import Host
-from eznet.vlab.nodes import Node, Network
+
+from .nodes import Node, Network
 
 
 DEFAULT_BASE_PATH = "/var/vlab"
@@ -44,8 +45,10 @@ class VLab:
             f"{test} || qemu-img create -f qcow2 -b {src} -F qcow2 {dst}"
         )
 
-    async def create(self, node: Node) -> None:
+    async def create_node(self, node: Node) -> None:
         await self.host.mkdir(self.vms_path / node.name)
+        for vnet in node.vnets(self):
+            await self.host.qemu.define_vnet(vnet.name, vnet.xml())
         for vm in node.vms(self):
             await self.host.mkdir(vm.path)
             for disk in vm.disks:
@@ -55,25 +58,36 @@ class VLab:
                     else:
                         await self.copy(disk.path, vm.path / disk.path.name)
             await self.host.qemu.define_vm(vm.name, vm.xml())
-        for vnet in node.vnets(self):
-            await self.host.qemu.define_vnet(vnet.name, vnet.xml())
         await node.init(self)
 
-    async def start(self, node_name: str) -> None:
+    async def start_node(self, node_name: str) -> None:
         for vnet in await self.host.qemu.list_vnets(node_name=node_name):
             await self.host.qemu.start_vnet(vnet.name)
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.start_vm(vm.name)
 
-    async def stop(self, node_name: str) -> None:
+    async def stop_node(self, node_name: str) -> None:
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.stop_vm(vm.name)
         for vnet in await self.host.qemu.list_vnets(node_name=node_name):
             await self.host.qemu.stop_vnet(vnet.name)
 
-    async def delete(self, node_name: str) -> None:
+    async def delete_node(self, node_name: str) -> None:
         for vm in await self.host.qemu.list_vms(node_name=node_name):
             await self.host.qemu.undefine_vm(vm.name)
         await self.host.rmdir(self.vms_path / node_name)
         for vnet in await self.host.qemu.list_vnets(node_name=node_name):
             await self.host.qemu.undefine_vnet(vnet.name)
+
+    async def create_network(self, network: Network) -> None:
+        vnet = network.vnet()
+        await self.host.qemu.define_vnet(vnet.name, vnet.xml())
+
+    async def start_network(self, network_name: str) -> None:
+        await self.host.qemu.start_vnet(network_name)
+
+    async def stop_network(self, network_name: str) -> None:
+        await self.host.qemu.stop_vnet(network_name)
+
+    async def delete_network(self, network_name: str) -> None:
+        await self.host.qemu.undefine_vnet(network_name)
