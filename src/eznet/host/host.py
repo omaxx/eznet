@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 
 from eznet.drivers import SSH
-from eznet.qemu import Qemu
 
 @dataclass
 class Host:
@@ -25,8 +24,6 @@ class Host:
             user_pass=self.user_pass,
             logger=self.logger,
         )
-
-        self.qemu = Qemu(self.ssh)
 
     async def run(self, cmd: str, stdin: str | None = None):
         await self.ssh.run(cmd, stdin)

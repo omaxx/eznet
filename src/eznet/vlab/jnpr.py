@@ -1,105 +1,12 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TYPE_CHECKING
 
-from eznet.qemu.vm import VM, Disk, Interface
-from eznet.qemu.vnet import VNet
-from eznet.host.config import UserData, NetworkConfig
-
-if TYPE_CHECKING:
-    from .vlab import VLab
-
-
-@dataclass
-class Bridge:
-    name: str
-
-    @property
-    def type(self) -> Literal["bridge"]:
-        return "bridge"
-
-
-@dataclass
-class Network:
-    name: str
-
-    @property
-    def type(self) -> Literal["network"]:
-        return "network"
-
-    def vnet(self) -> VNet:
-        return VNet(
-            name=self.name,
-            bridge=self.name,
-        )
-
-
-@dataclass
-class Node(ABC):
-    name: str
-    interfaces: list[Bridge|Network]
-
-    def path(self, vlab: VLab) -> Path:
-        return vlab.vms_path / self.name
-
-    @abstractmethod
-    def vms(self, vlab: VLab) -> list[VM]:
-        return []
-
-    def vnets(self, vlab: VLab) -> list[VNet]:
-        return []
-
-    async def init(self, vlab: VLab) -> None:
-        pass
-
-
-@dataclass
-class Linux(Node):
-    image: str
-    vcpus: int = 1
-    memory_mb: int = 1024
-    user_data: UserData | None = None
-    network_config: NetworkConfig | None = None
-
-    async def init(self, vlab: VLab) -> None:
-        path = vlab.vms_path / self.name
-        await vlab.host.write_file(path / "meta-data",str(""))
-        await vlab.host.write_file(path / "user-data", str(self.user_data or ""))
-        await vlab.host.write_file(path / "network-config", str(self.network_config or ""))
-
-        files = ("meta-data", "user-data", "network-config")
-        await vlab.host.run(" ".join([
-            "genisoimage",
-            "-volid cidata",
-            "-rational-rock",
-            "-joliet",
-            "-input-charset utf-8",
-            f"-output {path}/seed.img",
-            " ".join(f"{path}/{file}" for file in files),
-        ]))
-
-    def vms(self, vlab: VLab) -> list[VM]:
-        images_path = vlab.images_path / "linux"
-        return [
-            VM(
-                name=self.name,
-                path=self.path(vlab),
-                vcpus=self.vcpus,
-                memory_mb=self.memory_mb,
-                disks=[
-                    Disk(path=images_path / self.image, target="vda", format="qcow2", snapshot=True),
-                    Disk(path=Path("seed.img") , target="vdb", format="raw"),
-                ],
-                interfaces=[
-                    Interface(type=interface.type, source=interface.name, target=f"{self.name}-{i}")
-                    for i, interface in enumerate(self.interfaces)
-                ],
-            )
-        ]
-
+from .vlab import VLab
+from .topology import Node
+from .vm import VM, Disk, Interface
+from .vnet import VNet
 
 
 @dataclass
@@ -115,11 +22,13 @@ class vMX(Node):
     config: str | None = None
 
     def vms(self, vlab: VLab) -> list[VM]:
+        path = vlab.node_path(node_name=self.name)
+
         images_path = vlab.images_path / "junos/vmx" / self.version
         return [
             VM(
                 name=f"{self.name}~re{slot}",
-                path = self.path(vlab) / f"re{slot}",
+                path = path / f"re{slot}",
                 vcpus=self.re_vcpus,
                 memory_mb=self.re_memory_mb,
                 disks=[
@@ -141,7 +50,7 @@ class vMX(Node):
             VM(
                 name=f"{self.name}~fpc{slot}",
                 machine="pc",
-                path = self.path(vlab) / f"fpc{slot}",
+                path = path / f"fpc{slot}",
                 vcpus=self.fpc_vcpus,
                 memory_mb=self.fpc_memory_mb,
                 disks=[
@@ -179,9 +88,10 @@ class vMX(Node):
     async def init(self, vlab: VLab):
         if self.config is None:
             return
-        for re in ["re0", ]:
-            hdd_image = vlab.vms_path / self.name / re / "hdd.img"
 
+        path = vlab.node_path(node_name=self.name)
+        for re in ["re0", ]:
+            hdd_image = path / re / "hdd.img"
             staging_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
             mount_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
             try:

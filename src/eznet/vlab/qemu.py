@@ -26,15 +26,15 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-def sync_to_async(
-    method: Callable[P, T]
-) -> Callable[P, Coroutine[Any, Any, T]]:
-    @functools.wraps(method)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        return await asyncio.to_thread(method, *args, **kwargs)
-    return wrapper
-
-
+# def sync_to_async(
+#     method: Callable[P, T]
+# ) -> Callable[P, Coroutine[Any, Any, T]]:
+#     @functools.wraps(method)
+#     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+#         return await asyncio.to_thread(method, *args, **kwargs)
+#     return wrapper
+#
+#
 @dataclass
 class VM:
     @dataclass
@@ -108,66 +108,39 @@ class VNet:
 class Qemu:
     def __init__(
         self,
-        ssh: SSH,
     ):
-        self._ssh = ssh
-
-        self._port: int | None = None
-        self._socket: Path | None = None
         self._virt: libvirt.virConnect | None = None
 
-    async def __aenter__(self):
-        await self.open()
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
-
-    async def open(self):
-        await self._ssh.open()
+    def open(self, socket: Path | str = LIBVIRT_SOCK):
+        if self._virt is not None:
+            raise Exception()
+        # self._virt = libvirt.open(TCP_URI.format(port=port))
         try:
-            # self._port = await self._ssh.forward_local_port(port=LIBVIRT_PORT)
-            self._socket = await self._ssh.forward_local_path(path=LIBVIRT_SOCK)
-        except:
-            await self._ssh.close()
-            raise
-        def sync():
-            # self._virt = libvirt.open(TCP_URI.format(port=self._port))
-            self._virt = libvirt.open(SOCK_URI.format(socket=self._socket))
-        try:
-            await asyncio.to_thread(sync)
-        except:
-            # await self._ssh.close_forwarding(self._port)
-            # self._port = None
-            await self._ssh.close_forwarding(self._socket)
-            self._socket = None
-            await self._ssh.close()
+            self._virt = libvirt.open(SOCK_URI.format(socket=socket))
+        except libvirt.libvirtError as exc:
+            logger.error(f"Open libvirt: error: {exc}")
             raise
 
-    async def close(self):
-        def sync():
-            self._virt.close()
-        await asyncio.to_thread(sync)
-        # await self._ssh.close_forwarding(self._port)
-        # self._port = None
-        await self._ssh.close_forwarding(self._socket)
-        self._socket = None
-        await self._ssh.close()
+    def close(self):
+        if self._virt is None:
+            raise Exception()
+        self._virt.close()
+        self._virt = None
 
-    @sync_to_async
-    def define_vm(self, xml: str) -> None:
+    def define_vm(self, xml: str, node_name: str) -> None:
         name = ET.fromstring(xml).find("name").text
-        logger.info(f"Define VM `{name}` from\n{xml}")
+        logger.debug(f"Define VM `{name}` from\n{xml}")
         try:
             self._virt.defineXML(xml)
             logger.info(f"Define VM `{name}`: done")
+            self.vm_set_meta(name, node_name=node_name)
         except libvirt.libvirtError as exc:
             logger.error(f"Define VM `{name}`: error: {exc}")
 
-    @sync_to_async
     def vm_set_meta(self, vm_name: str, node_name: str) -> None:
         domain = self._virt.lookupByName(vm_name)
         xml = VM.Meta(node=node_name).to_xml()
-        logger.info(f"Set VM `{vm_name}` meta to\n{xml}")
+        logger.debug(f"Set VM `{vm_name}` meta to\n{xml}")
         domain.setMetadata(
             libvirt.VIR_DOMAIN_METADATA_ELEMENT,
             xml,
@@ -175,22 +148,22 @@ class Qemu:
             NS_URI,
             # flags =
         )
+        logger.info(f"Set VM `{vm_name}` meta: done")
 
-    @sync_to_async
     def define_vnet(self, xml: str) -> None:
         name = ET.fromstring(xml).find("name").text
-        logger.info(f"Define VNet `{name}` from\n{xml}")
+        logger.debug(f"Define VNet `{name}` from\n{xml}")
         try:
             self._virt.networkDefineXML(xml)
             logger.info(f"Define VNet `{name}`: done")
+            self.vnet_set_meta(name)
         except libvirt.libvirtError as exc:
             logger.error(f"Define VNet `{name}`: error: {exc}")
 
-    @sync_to_async
     def vnet_set_meta(self, vnet_name: str) -> None:
         network = self._virt.networkLookupByName(vnet_name)
         xml = VNet.Meta().to_xml()
-        logger.info(f"Set VNet `{vnet_name}` meta to\n{xml}")
+        logger.debug(f"Set VNet `{vnet_name}` meta to\n{xml}")
         network.setMetadata(
             libvirt.VIR_NETWORK_METADATA_ELEMENT,
             xml,
@@ -198,17 +171,17 @@ class Qemu:
             NS_URI,
             # flags =
         )
+        logger.info(f"Set VNet `{vnet_name}` meta: done")
 
-    @sync_to_async
     def vnet_add_node_tag(self, vnet_name: str, node_name: str) -> None:
-        logger.info(f"VNet `{vnet_name}`: add node_tag `{node_name}`")
+        logger.debug(f"VNet `{vnet_name}`: add node_tag `{node_name}`")
         network = self._virt.networkLookupByName(vnet_name)
         vnet = VNet.from_network(network)
-        logger.info(f"VNet `{vnet_name}` meta:\n{vnet.meta}")
+        logger.debug(f"VNet `{vnet_name}` meta:\n{vnet.meta}")
         if vnet.meta is not None and node_name not in vnet.meta.nodes:
             vnet.meta.nodes.append(node_name)
             xml = vnet.meta.to_xml()
-            logger.info(f"Set VNet `{vnet_name}` meta to\n{xml}")
+            logger.debug(f"Set VNet `{vnet_name}` meta to\n{xml}")
             network.setMetadata(
                 libvirt.VIR_NETWORK_METADATA_ELEMENT,
                 xml,
@@ -216,22 +189,8 @@ class Qemu:
                 NS_URI,
                 # flags =
             )
+            logger.info(f"VNet `{vnet_name}`: add node_tag `{node_name}`: done")
 
-    @sync_to_async
-    def vnet_del_node_tag(self, vnet_name: str, node_name: str) -> None:
-        network = self._virt.networkLookupByName(vnet_name)
-        vnet = VNet.from_network(network)
-        if vnet.meta is not None and node_name in vnet.meta.nodes:
-            vnet.meta.nodes.remove(node_name)
-            network.setMetadata(
-                libvirt.VIR_NETWORK_METADATA_ELEMENT,
-                vnet.meta.to_xml(),
-                NS_NAME,
-                NS_URI,
-                # flags =
-            )
-
-    @sync_to_async
     def start_node(self, node_name: str) -> None:
         for network in self._virt.listAllNetworks():
             vnet = VNet.from_network(network)
@@ -245,7 +204,6 @@ class Qemu:
                 if not vm.active:
                     domain.create()
 
-    @sync_to_async
     def stop_node(self, node_name: str) -> None:
         for domain in self._virt.listAllDomains():
             vm = VM.from_domain(domain)
@@ -259,8 +217,7 @@ class Qemu:
                 if vnet.active and len(network.listAllPorts()) == 0:
                     network.destroy()
 
-    @sync_to_async
-    def undefine_node(self, node_name: str) -> None:
+    def undefine_node_vms(self, node_name: str) -> None:
         for domain in self._virt.listAllDomains():
             vm = VM.from_domain(domain)
             if (meta := vm.meta) is not None and meta.node == node_name:
@@ -268,6 +225,7 @@ class Qemu:
                     domain.destroy()
                 domain.undefine()
 
+    def vnet_del_node_tag(self, node_name: str) -> None:
         for network in self._virt.listAllNetworks():
             vnet = VNet.from_network(network)
             if vnet.meta is not None and node_name in vnet.meta.nodes:
@@ -280,26 +238,29 @@ class Qemu:
                     # flags =
                 )
 
-    @sync_to_async
+    def undefine_orphan_networks(self) -> None:
+        for network in self._virt.listAllNetworks():
+            vnet = VNet.from_network(network)
+            if vnet.meta is not None and len(vnet.meta.nodes) == 0:
+                network.undefine()
+                logger.info(f"Undefine VNet `{vnet.name}`: done")
+
     def undefine_vnet(self, name: str) -> None:
         try:
             network = self._virt.networkLookupByName(name)
             network.undefine()
+            logger.info(f"Undefine VNet `{name}`: done")
         except libvirt.libvirtError as exc:
-            logger.error(f"Undefine {name}: {exc}")
+            logger.error(f"Undefine VNet `{name}`: error: {exc}")
 
-    async def list_vms(self) -> list[VM]:
-        def sync():
-            return [
-                VM.from_domain(domain)
-                for domain in self._virt.listAllDomains()
-            ]
-        return await asyncio.to_thread(sync)
+    def list_vms(self) -> list[VM]:
+        return [
+            VM.from_domain(domain)
+            for domain in self._virt.listAllDomains()
+        ]
 
-    async def list_vnets(self) -> list[VNet]:
-        def sync():
-            return [
-                VNet.from_network(network)
-                for network in self._virt.listAllNetworks()
-            ]
-        return await asyncio.to_thread(sync)
+    def list_vnets(self) -> list[VNet]:
+        return [
+            VNet.from_network(network)
+            for network in self._virt.listAllNetworks()
+        ]
