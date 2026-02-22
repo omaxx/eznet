@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
 
-from .vlab import VLab
 from .topology import Node
 from .vm import VM, Disk, Interface
 from .vnet import VNet
 
+if TYPE_CHECKING:
+    from .vlab import VLab
 
 @dataclass
 class vMX(Node):
@@ -41,8 +43,8 @@ class vMX(Node):
                     ),
                 ],
                 interfaces=[
-                    Interface("network", source="mgmt", target=f"{self.name}~re{slot}~mgmt"),
-                    Interface("network", source=f"{self.name}~int", target=f"{self.name}~re{slot}~int"),
+                    Interface(type="network", source="mgmt", target=f"{self.name}~re{slot}~mgmt"),
+                    Interface(type="network", source=f"{self.name}~int", target=f"{self.name}~re{slot}~int"),
                 ],
             )
             for slot in [0, ]
@@ -68,9 +70,9 @@ class vMX(Node):
                     ),
                 ],
                 interfaces=[
-                    Interface("network", source="mgmt", target=f"{self.name}~fpc{slot}~mgmt"),
-                    Interface("network", source=f"{self.name}~int", target=f"{self.name}~fpc{slot}~int"),
-                    Interface("network", source=f"{self.name}~fab", target=f"{self.name}~fpc{slot}~fab"),
+                    Interface(type="network", source="mgmt", target=f"{self.name}~fpc{slot}~mgmt"),
+                    Interface(type="network", source=f"{self.name}~int", target=f"{self.name}~fpc{slot}~int"),
+                    Interface(type="network", source=f"{self.name}~fab", target=f"{self.name}~fpc{slot}~fab"),
                 ] + [
                     Interface(type=interface.type, source=interface.name, target=f"{self.name}-{slot}-{i}")
                     for i, interface in enumerate(self.interfaces)
