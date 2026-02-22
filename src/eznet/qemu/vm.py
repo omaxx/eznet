@@ -101,7 +101,6 @@ class VM:
         "host-passthrough", "host-model", "custom"
     ] = "host-passthrough"
     emulator: str = "/usr/bin/qemu-system-x86_64"
-    node: str | None = None
 
     def xml(self) -> str:
         root = self._build_domain()
@@ -112,11 +111,6 @@ class VM:
         domain = Element("domain", type="kvm")
 
         SubElement(domain, "name").text = self.name
-
-        meta = SubElement(domain, "metadata")
-        instance = SubElement(meta, f"{{{VLAB_NS}}}instance")
-        if self.node is not None:
-            SubElement(instance, f"{{{VLAB_NS}}}node").text = self.node
 
         SubElement(domain, "memory", unit="MiB").text = str(self.memory_mb)
         SubElement(domain, "vcpu", placement="static").text = str(self.vcpus)

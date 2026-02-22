@@ -42,6 +42,9 @@ class Node(ABC):
     name: str
     interfaces: list[Bridge|Network]
 
+    def path(self, vlab: VLab) -> Path:
+        return vlab.vms_path / self.name
+
     @abstractmethod
     def vms(self, vlab: VLab) -> list[VM]:
         return []
@@ -83,7 +86,7 @@ class Linux(Node):
         return [
             VM(
                 name=self.name,
-                path=vlab.vms_path / self.name,
+                path=self.path(vlab),
                 vcpus=self.vcpus,
                 memory_mb=self.memory_mb,
                 disks=[
@@ -94,7 +97,6 @@ class Linux(Node):
                     Interface(type=interface.type, source=interface.name, target=f"{self.name}-{i}")
                     for i, interface in enumerate(self.interfaces)
                 ],
-                node=self.name,
             )
         ]
 
@@ -117,7 +119,7 @@ class vMX(Node):
         return [
             VM(
                 name=f"{self.name}~re{slot}",
-                path = vlab.vms_path / self.name / f"re{slot}",
+                path = self.path(vlab) / f"re{slot}",
                 vcpus=self.re_vcpus,
                 memory_mb=self.re_memory_mb,
                 disks=[
@@ -133,14 +135,13 @@ class vMX(Node):
                     Interface("network", source="mgmt", target=f"{self.name}~re{slot}~mgmt"),
                     Interface("network", source=f"{self.name}~int", target=f"{self.name}~re{slot}~int"),
                 ],
-                node=self.name,
             )
             for slot in [0, ]
         ] + [
             VM(
                 name=f"{self.name}~fpc{slot}",
                 machine="pc",
-                path = vlab.vms_path / self.name / f"fpc{slot}",
+                path = self.path(vlab) / f"fpc{slot}",
                 vcpus=self.fpc_vcpus,
                 memory_mb=self.fpc_memory_mb,
                 disks=[
@@ -165,15 +166,14 @@ class vMX(Node):
                     Interface(type=interface.type, source=interface.name, target=f"{self.name}-{slot}-{i}")
                     for i, interface in enumerate(self.interfaces)
                 ],
-                node=self.name,
             )
             for slot in [0, ]
         ]
 
     def vnets(self, vlab: VLab) -> list[VNet]:
         return [
-            VNet(name=f"{self.name}~int", node=self.name),
-            VNet(name=f"{self.name}~fab", node=self.name),
+            VNet(name=f"{self.name}~int"),
+            VNet(name=f"{self.name}~fab"),
         ]
 
     async def init(self, vlab: VLab):

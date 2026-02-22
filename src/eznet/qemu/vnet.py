@@ -63,7 +63,6 @@ class VNet:
     mode: Literal["nat", "route", "open", "bridge"] | None = None
     bridge: str | None = None
     ip: IP | None = None
-    node: str | None = None
 
     def xml(self) -> str:
         root = self._build_network()
@@ -74,11 +73,6 @@ class VNet:
         network = Element("network")
 
         SubElement(network, "name").text = self.name
-
-        meta = SubElement(network, "metadata")
-        instance = SubElement(meta, f"{{{VLAB_NS}}}instance")
-        if self.node is not None:
-            SubElement(instance, f"{{{VLAB_NS}}}node").text = self.node
 
         if self.bridge is not None:
             SubElement(network, "bridge", name=self.bridge)

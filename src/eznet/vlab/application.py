@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+import logging
+
+from rich.console import Console
+from rich.logging import RichHandler
+
 from eznet.host import Host
 from eznet.host.config import user_data, network_config
 
 from .vlab import VLab
 from .nodes import Linux, Bridge, Network, vMX
+
+console = Console()
+logger =  logging.getLogger("eznet")
+logger.setLevel(logging.INFO)
+handler = RichHandler(
+    level=logging.INFO,
+    rich_tracebacks=True,       # Pretty tracebacks
+    tracebacks_show_locals=True, # Show local vars in tracebacks
+    show_time=True,             # Show timestamp
+    show_path=True,             # Show file path
+    markup=True,                # Enable Rich markup in messages
+)
+
+handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
+logger.addHandler(handler)
+
 
 networks = [
     Network("srv1"),
@@ -55,17 +76,18 @@ class App:
 
     async def start(self):
         async with self.host.qemu:
-            for network in networks:
-                await self.vlab.start_network(network.name)
             for node in nodes:
                 await self.vlab.start_node(node.name)
+
+    async def status(self):
+        async with self.host.qemu:
+            console.print(await self.host.qemu.list_vms())
+            console.print(await self.host.qemu.list_vnets())
 
     async def stop(self):
         async with self.host.qemu:
             for node in nodes:
                 await self.vlab.stop_node(node.name)
-            for network in networks:
-                await self.vlab.stop_network(network.name)
 
     async def delete(self):
         async with self.host.qemu:
