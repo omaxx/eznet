@@ -97,7 +97,7 @@ class VLab:
                 # await self.host.qemu.define_vnet(interface.vnet().xml())
                 await asyncio.to_thread(
                     self._qemu.vnet_add_node_tag,
-                    interface.vnet().name,
+                    interface.name,
                     node_name=node.name,
                 )
         for vnet in node.vnets(self):
