@@ -33,11 +33,13 @@ class Network:
             bridge=self.name,
         )
 
+Link = Network | Bridge
 
 @dataclass
 class Node:
     name: str
-    interfaces: list[Bridge|Network]
+    type: str
+    interfaces: list[Link] = field(default_factory=list)
 
     def vms(self, vlab: VLab) -> list[VM]:
         return []
@@ -47,7 +49,6 @@ class Node:
 
     async def init(self, vlab: VLab) -> None:
         pass
-
 
 @dataclass
 class Topology:

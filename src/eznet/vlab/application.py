@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -9,8 +10,7 @@ from eznet.host import Host
 
 from .vlab import VLab
 from .topology import Topology, Network
-from .linux import Linux
-from .jnpr import vMX
+from eznet.vlab.nodes import Linux, vMX
 
 from eznet.host.config import user_data, network_config
 
@@ -71,6 +71,7 @@ topology = Topology(
     nodes=nodes,
 )
 
+# topology = Topology.from_yaml(Path("./topologies/sp/vlab.yaml").read_text())
 
 class App:
     def __init__(self, ip: str = "172.31.0.8"):

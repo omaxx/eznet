@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from dataclasses import dataclass
+from typing import TYPE_CHECKING,  Literal
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from .topology import Node
-from .vm import VM, Disk, Interface
-from .vnet import VNet
+from eznet.vlab.topology import Node
+from eznet.vlab.vm import VM, Disk, Interface
+from eznet.vlab.vnet import VNet
 
 if TYPE_CHECKING:
-    from .vlab import VLab
+    from eznet.vlab import VLab
 
-@dataclass
+
+@dataclass(kw_only=True)
 class vMX(Node):
+    type: Literal["jnpr/vmx"] = "jnpr/vmx"
     version: str
     re_image: str
     fpc_image: str

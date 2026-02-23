@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from eznet.host.config import UserData, NetworkConfig
 
-from .topology import Node
-from .vm import VM, Disk, Interface
+from eznet.vlab.topology import Node
+from eznet.vlab.vm import VM, Disk, Interface
 
 if TYPE_CHECKING:
-    from .vlab import VLab
+    from eznet.vlab import VLab
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Linux(Node):
+    type: Literal["linux"] = "linux"
     image: str
     memory_mb: int = 1024
     vcpus: int = 1
