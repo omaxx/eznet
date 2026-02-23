@@ -13,37 +13,37 @@ networks:
 
 nodes:
   - type: jnpr/vmx
-    name: "vmx1"
+    name: vmx1
     <<: *vmx
     interfaces:
-      - network: "vmx1_vmx2"
+      - network: vmx1_vmx2
         ip: "10.0.12.1/24"
-      - network: "srv1"
+      - network: srv1
         ip: "192.168.1.254/24"
 
   - type: jnpr/vmx
-    name: "vmx2"
+    name: vmx2
     <<: *vmx
     interfaces:
-      - network: "vmx1_vmx2"
+      - network: vmx1_vmx2
         ip: "10.0.12.2/24"
-      - network: "srv2"
+      - network: srv2
         ip: "192.168.2.254/24"
 
   - type: linux
-    name: "srv1"
+    name: srv1
     <<: *linux
     interfaces:
-      - network: "mgmt"
+      - network: mgmt
         ip: "192.168.0.1/24"
-      - network: "srv1"
+      - network: srv1
         ip: "192.168.1.1/24"
 
   - type: linux
-    name: "srv2"
+    name: srv2
     <<: *linux
     interfaces:
-      - network: "mgmt"
+      - network: mgmt
         ip: "192.168.0.2/24"
-      - network: "srv2"
+      - network: srv2
         ip: "192.168.2.1/24"

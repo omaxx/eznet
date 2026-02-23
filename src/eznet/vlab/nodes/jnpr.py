@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class vMX(Node):
-    type: Literal["jnpr/vmx"] = "jnpr/vmx"
+    type = "jnpr/vmx"
     version: str
     re_image: str
     fpc_image: str

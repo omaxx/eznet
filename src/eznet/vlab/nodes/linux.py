@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class Linux(Node):
-    type: Literal["linux"] = "linux"
+    type = "linux"
     image: str
     memory_mb: int = 1024
     vcpus: int = 1
@@ -55,6 +55,7 @@ class Linux(Node):
             "-rational-rock",
             "-joliet",
             "-input-charset utf-8",
+            "-quiet",
             f"-output {path}/seed.img",
             " ".join(f"{path}/{file}" for file in files),
         ]))

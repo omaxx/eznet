@@ -16,19 +16,12 @@ if TYPE_CHECKING:
 @dataclass
 class Bridge:
     name: str
-
-    @property
-    def type(self) -> Literal["bridge"]:
-        return "bridge"
-
+    type: Literal["bridge"] = "bridge"
 
 @dataclass
 class Network:
     name: str
-
-    @property
-    def type(self) -> Literal["network"]:
-        return "network"
+    type: Literal["network"] = "network"
 
     def vnet(self) -> VNet:
         return VNet(
@@ -58,7 +51,6 @@ class Node:
         }
 
     name: str
-    type: str
     interfaces: list[Link] = field(default_factory=list)
 
     def vms(self, vlab: VLab) -> list[VM]:
