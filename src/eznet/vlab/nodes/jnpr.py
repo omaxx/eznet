@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING,  Literal
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from eznet.vlab.topology import Node
+from eznet.vlab.topology import Node, Link
 from eznet.vlab.vm import VM, Disk, Interface
 from eznet.vlab.vnet import VNet
 

@@ -9,10 +9,7 @@ from rich.logging import RichHandler
 from eznet.host import Host
 
 from .vlab import VLab
-from .topology import Topology, Network
-from eznet.vlab.nodes import Linux, vMX
-
-from eznet.host.config import user_data, network_config
+from .topology import Topology
 
 console = Console()
 logger =  logging.getLogger("eznet")
@@ -29,49 +26,9 @@ handler = RichHandler(
 handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
 logger.addHandler(handler)
 
-networks = [
-    Network("srv1"),
-    Network("srv2"),
-]
 
+topology = Topology.from_yaml(Path("./topologies/sp/vlab.yaml").read_text())
 
-nodes = [
-    Linux(
-        name = "srv1",
-        image="debian-13-genericcloud-amd64.qcow2",
-        interfaces=[
-            Network("mgmt"), Network("srv1"),
-        ],
-        user_data=user_data(),
-        network_config=network_config("192.168.0.1/24", "192.168.1.1/24")
-    ),
-    Linux(
-        name="srv2",
-        image="debian-13-genericcloud-amd64.qcow2",
-        interfaces=[
-            Network("mgmt"), Network("srv2"),
-        ],
-        user_data=user_data(),
-        network_config=network_config("192.168.0.2/24", "192.168.2.1/24")
-    ),
-    vMX(
-        name="vmx1",
-        version="24.4R1-S2.9",
-        re_image="junos-vmx-x86-64-24.4R1-S2.9.qcow2",
-        fpc_image="vFPC-20241118.img",
-        interfaces=[
-            Network("srv1"), Network("srv2"),
-        ],
-    )
-]
-
-
-topology = Topology(
-    networks=networks,
-    nodes=nodes,
-)
-
-# topology = Topology.from_yaml(Path("./topologies/sp/vlab.yaml").read_text())
 
 class App:
     def __init__(self, ip: str = "172.31.0.8"):

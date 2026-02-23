@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal, TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING, Annotated
 from dataclasses import dataclass, field
+
+from mashumaro.mixins.yaml import DataClassYAMLMixin
+from mashumaro.types import Discriminator, SerializationStrategy
 
 from .vm import VM
 from .vnet import VNet
@@ -33,10 +36,27 @@ class Network:
             bridge=self.name,
         )
 
+class LinkStrategy(SerializationStrategy):
+    def serialize(self, value: Bridge | Network) -> dict[str, str]:
+        return {value.type: value.name}
+
+    def deserialize(self, value: dict[str, str]) -> Bridge | Network:
+        if "bridge" in value:
+            return Bridge(value["bridge"])
+        if "network" in value:
+            return Network(value["network"])
+        raise ValueError(f"Unknown interface type: {value}")
+
+
 Link = Network | Bridge
 
 @dataclass
 class Node:
+    class Config:
+        serialization_strategy = {
+            Link: LinkStrategy(),
+        }
+
     name: str
     type: str
     interfaces: list[Link] = field(default_factory=list)
@@ -50,7 +70,12 @@ class Node:
     async def init(self, vlab: VLab) -> None:
         pass
 
+
+from .nodes import *
+
 @dataclass
-class Topology:
+class Topology(DataClassYAMLMixin):
     networks: list[Network] = field(default_factory=list)
-    nodes: list[Node] = field(default_factory=list)
+    nodes: list[
+        Annotated[Node, Discriminator(field="type", include_subtypes=True)]
+    ] = field(default_factory=list)

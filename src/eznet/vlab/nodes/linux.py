@@ -6,7 +6,7 @@ from pathlib import Path
 
 from eznet.host.config import UserData, NetworkConfig
 
-from eznet.vlab.topology import Node
+from eznet.vlab.topology import Node, Link
 from eznet.vlab.vm import VM, Disk, Interface
 
 if TYPE_CHECKING:

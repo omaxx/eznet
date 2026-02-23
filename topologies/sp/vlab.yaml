@@ -1,3 +1,11 @@
+linux: &linux
+    image: "debian-13-genericcloud-amd64.qcow2"
+
+vmx: &vmx
+    version: "24.4R1-S2.9"
+    re_image: "junos-vmx-x86-64-24.4R1-S2.9.qcow2"
+    fpc_image: "vFPC-20241118.img"
+
 networks:
   - name: srv1
   - name: srv2
@@ -5,23 +13,27 @@ networks:
 nodes:
   - type: linux
     name: "srv1"
-    image: "debian-13-genericcloud-amd64.qcow2"
+    <<: *linux
     interfaces:
       - network: "mgmt"
+        ip: "192.168.0.1/24"
       - network: "srv1"
+        ip: "192.168.1.1/24"
 
   - type: linux
     name: "srv2"
-    image: "debian-13-genericcloud-amd64.qcow2"
-    interfaces: []
-#      - network: "mgmt"
-#      - network: "srv2"
+    <<: *linux
+    interfaces:
+      - network: "mgmt"
+        ip: "192.168.0.2/24"
+      - network: "srv2"
+        ip: "192.168.2.1/24"
 
   - type: jnpr/vmx
     name: "vmx1"
-    version: "24.4R1-S2.9"
-    re_image: "junos-vmx-x86-64-24.4R1-S2.9.qcow2"
-    fpc_image: "vFPC-20241118.img"
-    interfaces: []
-#      - network: "srv1"
-#      - network: "srv2"
+    <<: *vmx
+    interfaces:
+      - network: "srv1"
+        ip: "192.168.1.254/24"
+      - network: "srv2"
+        ip: "192.168.2.254/24"
