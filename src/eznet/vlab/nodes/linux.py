@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Literal
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from eznet.host.config import UserData, NetworkConfig
+from eznet.host.config import Config
 
 from eznet.vlab.topology import Node, Link
 from eznet.vlab.vm import VM, Disk, Interface
@@ -20,8 +20,7 @@ class Linux(Node):
     image: str
     memory_mb: int = 1024
     vcpus: int = 1
-    user_data: UserData | None = None
-    network_config: NetworkConfig | None = None
+    config: Config | None = None
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)
@@ -55,8 +54,8 @@ class Linux(Node):
     async def init(self, vlab: VLab) -> None:
         path = vlab.node_path(node_name=self.name)
         await vlab.host.write_file(path / "meta-data",str(""))
-        await vlab.host.write_file(path / "user-data", str(self.user_data or ""))
-        await vlab.host.write_file(path / "network-config", str(self.network_config or ""))
+        await vlab.host.write_file(path / "user-data", str(self.config.user_data() or ""))
+        await vlab.host.write_file(path / "network-config", str(self.config.network_config() or ""))
 
         files = ("meta-data", "user-data", "network-config")
         await vlab.host.run(" ".join([

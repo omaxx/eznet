@@ -8,6 +8,7 @@ from pathlib import Path
 from mashumaro.mixins.dict import DataClassDictMixin
 import yaml
 
+
 @dataclass
 class UserData(DataClassDictMixin):
     @dataclass
@@ -38,24 +39,31 @@ class NetworkConfig(DataClassDictMixin):
         return "#network-config\n" + yaml.safe_dump({"network": self.to_dict()})
 
 
-def user_data() -> UserData:
-    return UserData(
-        users=[
-            UserData.User(
-                name=os.getenv("USER"),
-                groups=["sudo"],
-                shell="/bin/bash",
-                sudo=['ALL=(ALL) NOPASSWD:ALL'],
-                ssh_authorized_keys=[Path("~/.ssh/id_rsa.pub").expanduser().read_text().strip()],
-            )
-        ]
-    )
+@dataclass
+class Config:
+    @dataclass
+    class Interface:
+        ip: str
 
+    interfaces: dict[str, Interface]
 
-def network_config(*ip: str) -> NetworkConfig:
-    return NetworkConfig(
-        ethernets={
-            f"enp{i+1}s0": NetworkConfig.Ethernet(addresses=[address])
-            for i, address in enumerate(ip)
-        }
-    )
+    def user_data(self) -> UserData:
+        return UserData(
+            users=[
+                UserData.User(
+                    name=os.getenv("USER"),
+                    groups=["sudo"],
+                    shell="/bin/bash",
+                    sudo=['ALL=(ALL) NOPASSWD:ALL'],
+                    ssh_authorized_keys=[Path("~/.ssh/id_rsa.pub").expanduser().read_text().strip()],
+                )
+            ]
+        )
+
+    def network_config(self) -> NetworkConfig:
+        return NetworkConfig(
+            ethernets={
+                iface_name: NetworkConfig.Ethernet(addresses=[iface_config.ip])
+                for iface_name, iface_config in self.interfaces.items()
+            }
+        )

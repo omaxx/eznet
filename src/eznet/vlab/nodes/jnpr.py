@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING,  Literal
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from eznet.jnpr.config import Config
+
 from eznet.vlab.topology import Node, Link
 from eznet.vlab.vm import VM, Disk, Interface
 from eznet.vlab.vnet import VNet
@@ -24,7 +26,7 @@ class vMX(Node):
     fpc_memory_mb: int = 2048
     fpc_vcpus: int = 3
     double_re: bool = False
-    config: str | None = None
+    config: Config | None = None
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)
@@ -166,7 +168,7 @@ class vMX(Node):
                 try:
                     await vlab.host.run(f"tar zxvf {mount_dir}/vmm-config.tgz -C {staging_dir}")
                     await vlab.host.run(f"mkdir -p {staging_dir}/config")
-                    await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", self.config)
+                    await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", str(self.config))
                     await vlab.host.run(f"tar zcvf {mount_dir}/vmm-config.tgz -C {staging_dir} .")
                 finally:
                     await vlab.host.run(f"guestunmount {mount_dir}")
