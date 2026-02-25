@@ -12,6 +12,7 @@ from eznet.vlab.vm import VM, Disk, Interface
 if TYPE_CHECKING:
     from eznet.vlab import VLab
 
+MAC = "ca:ff:ee"
 
 @dataclass(kw_only=True)
 class Linux(Node):
@@ -36,7 +37,16 @@ class Linux(Node):
                     Disk(path=Path("seed.img") , target="vdb", format="raw"),
                 ],
                 interfaces=[
-                    Interface(type=interface.type, source=interface.name, target=f"{self.name}-{i}")
+                    Interface(
+                        type=interface.type,
+                        source=interface.name,
+                        target=f"{self.name}-{i}",
+                        mac=(
+                            f"{MAC}:{self.id}:00:{i}"
+                            if self.id is not None
+                            else None
+                        ),
+                    )
                     for i, interface in enumerate(self.interfaces)
                 ],
             )

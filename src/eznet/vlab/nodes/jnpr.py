@@ -11,6 +11,7 @@ from eznet.vlab.vnet import VNet
 if TYPE_CHECKING:
     from eznet.vlab import VLab
 
+MAC = "ca:ff:ee"
 
 @dataclass(kw_only=True)
 class vMX(Node):
@@ -39,14 +40,36 @@ class vMX(Node):
                     Disk(path = images_path / self.re_image, target="vda", snapshot=True),
                     Disk(path = images_path / "vmxhdd.img", target="vdb"),
                     Disk(
-                        path = images_path / f"metadata-usb-re{slot}.img",
+                        path = (
+                            images_path / f"metadata-usb-re{slot}.img"
+                            if self.double_re else
+                            images_path / "metadata-usb-re.img"
+                        ),
                         target="vdc",
                         format="raw",
                     ),
                 ],
                 interfaces=[
-                    Interface(type="network", source="mgmt", target=f"{self.name}~re{slot}~mgmt"),
-                    Interface(type="network", source=f"{self.name}~int", target=f"{self.name}~re{slot}~int"),
+                    Interface(
+                        type="network",
+                        source="mgmt",
+                        target=f"{self.name}~re{slot}~mgmt",
+                        mac=(
+                            f"{MAC}:{self.id}:{10 + slot}:00"
+                            if self.id is not None
+                            else None
+                        ),
+                    ),
+                    Interface(
+                        type="network",
+                        source=f"{self.name}~int",
+                        target=f"{self.name}~re{slot}~int",
+                        mac=(
+                            f"{MAC}:{self.id}:{10 + slot}:01"
+                            if self.id is not None
+                            else None
+                        ),
+                    ),
                 ],
             )
             for slot in [0, ]
@@ -72,11 +95,47 @@ class vMX(Node):
                     ),
                 ],
                 interfaces=[
-                    Interface(type="network", source="mgmt", target=f"{self.name}~fpc{slot}~mgmt"),
-                    Interface(type="network", source=f"{self.name}~int", target=f"{self.name}~fpc{slot}~int"),
-                    Interface(type="network", source=f"{self.name}~fab", target=f"{self.name}~fpc{slot}~fab"),
+                    Interface(
+                        type="network",
+                        source="mgmt",
+                        target=f"{self.name}~fpc{slot}~mgmt",
+                        mac=(
+                            f"{MAC}:{self.id}:{slot}:0a"
+                            if self.id is not None
+                            else None
+                        ),
+                    ),
+                    Interface(
+                        type="network",
+                        source=f"{self.name}~int",
+                        target=f"{self.name}~fpc{slot}~int",
+                        mac=(
+                            f"{MAC}:{self.id}:{slot}:0b"
+                            if self.id is not None
+                            else None
+                        ),
+                    ),
+                    Interface(
+                        type="network",
+                        source=f"{self.name}~fab",
+                        target=f"{self.name}~fpc{slot}~fab",
+                        mac=(
+                            f"{MAC}:{self.id}:{slot}:0c"
+                            if self.id is not None
+                            else None
+                        ),
+                    ),
                 ] + [
-                    Interface(type=interface.type, source=interface.name, target=f"{self.name}-{slot}-{i}")
+                    Interface(
+                        type=interface.type,
+                        source=interface.name,
+                        target=f"{self.name}-{slot}-{i}",
+                        mac=(
+                            f"{MAC}:{self.id}:{slot}:{i}"
+                            if self.id is not None
+                            else None
+                        ),
+                    )
                     for i, interface in enumerate(self.interfaces)
                 ],
             )
@@ -94,17 +153,21 @@ class vMX(Node):
             return
 
         path = vlab.node_path(node_name=self.name)
-        for re in ["re0", ]:
-            hdd_image = path / re / "hdd.img"
+        for slot in [0, ]:
+            hdd_image = (
+                path / f"re{slot}" / f"metadata-usb-re{slot}.img"
+                if self.double_re else
+                path / f"re{slot}" / "metadata-usb-re.img"
+            )
             staging_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
             mount_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
             try:
                 await vlab.host.run(f"guestmount -a {hdd_image} -m /dev/sda {mount_dir}")
                 try:
                     await vlab.host.run(f"tar zxvf {mount_dir}/vmm-config.tgz -C {staging_dir}")
-                    await vlab.host.run(f"test -d {staging_dir}/config || mkdir {staging_dir}/config")
+                    await vlab.host.run(f"mkdir -p {staging_dir}/config")
                     await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", self.config)
-                    await vlab.host.run(f"tar zcvf {mount_dir}/vmm-config.tgz {staging_dir}")
+                    await vlab.host.run(f"tar zcvf {mount_dir}/vmm-config.tgz -C {staging_dir} .")
                 finally:
                     await vlab.host.run(f"guestunmount {mount_dir}")
             finally:

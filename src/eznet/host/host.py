@@ -26,7 +26,7 @@ class Host:
         )
 
     async def run(self, cmd: str, stdin: str | None = None):
-        await self.ssh.run(cmd, stdin)
+        return await self.ssh.run(cmd, stdin)
 
     async def mkdir(self, path: str | Path):
         await self.run(f"test -d {path} || mkdir -p {path}")

@@ -13,37 +13,51 @@ networks:
 
 nodes:
   - type: jnpr/vmx
+    id: 1
     name: vmx1
     <<: *vmx
     interfaces:
       - network: vmx1_vmx2
-        ip: "10.0.12.1/24"
       - network: srv1
-        ip: "192.168.1.254/24"
+    config:
+      interfaces:
+        "fxp0": {ip: "192.168.0.1/24"}
+        "ge-0/0/0": {ip: "10.0.12.1/24"}
+        "ge-0/0/1": {ip: "192.168.1.254/24"}
 
-  - type: jnpr/vmx
-    name: vmx2
-    <<: *vmx
-    interfaces:
-      - network: vmx1_vmx2
-        ip: "10.0.12.2/24"
-      - network: srv2
-        ip: "192.168.2.254/24"
-
-  - type: linux
-    name: srv1
-    <<: *linux
-    interfaces:
-      - network: mgmt
-        ip: "192.168.0.1/24"
-      - network: srv1
-        ip: "192.168.1.1/24"
-
-  - type: linux
-    name: srv2
-    <<: *linux
-    interfaces:
-      - network: mgmt
-        ip: "192.168.0.2/24"
-      - network: srv2
-        ip: "192.168.2.1/24"
+#  - type: jnpr/vmx
+#    id: 2
+#    name: vmx2
+#    <<: *vmx
+#    interfaces:
+#      - network: vmx1_vmx2
+#      - network: srv2
+#    config:
+#      interfaces:
+#        "fxp0": {ip: "192.168.0.2/24"}
+#        "ge-0/0/0": {ip: "10.0.12.2/24"}
+#        "ge-0/0/1": {ip: "192.168.2.254/24"}
+#
+#  - type: linux
+#    id: 3
+#    name: srv1
+#    <<: *linux
+#    interfaces:
+#      - network: mgmt
+#      - network: srv1
+#    config:
+#      interfaces:
+#        "enp1s0": {ip: "192.168.0.11/24"}
+#        "enp2s0": {ip: "192.168.1.1/24"}
+#
+#  - type: linux
+#    id: 4
+#    name: srv2
+#    <<: *linux
+#    interfaces:
+#      - network: mgmt
+#      - network: srv2
+#    config:
+#      interfaces:
+#        "enp1s0": {ip: "192.168.0.12/24"}
+#        "enp2s0": {ip: "192.168.2.1/24"}

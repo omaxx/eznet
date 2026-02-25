@@ -51,6 +51,7 @@ class Node:
         }
 
     name: str
+    id: int | None = None
     interfaces: list[Link] = field(default_factory=list)
 
     def vms(self, vlab: VLab) -> list[VM]:
