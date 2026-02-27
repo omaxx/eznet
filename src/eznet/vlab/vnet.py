@@ -63,6 +63,7 @@ class VNet:
     mode: Literal["nat", "route", "open", "bridge"] | None = None
     bridge: str | None = None
     ip: IP | None = None
+    mtu: int = 9200
 
     def xml(self) -> str:
         root = self._build_network()
@@ -82,5 +83,7 @@ class VNet:
 
         if self.ip is not None:
             network.append(self.ip.xml())
+
+        SubElement(network, "mtu", size=str(self.mtu))
 
         return network
