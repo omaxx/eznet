@@ -1,0 +1,67 @@
+[project]
+name = "eznet"
+version = "0.1.0"
+description = "Network Devices EZ Management"
+authors = [
+    {name = "Maxim Orlov", email = "maxx.orlov@gmail.com"},
+]
+requires-python = ">=3.11"
+dependencies = [
+    "asyncssh",
+    "typing-extensions",
+    "pyyaml",
+    "types-PyYaml",
+    "lxml",
+    "lxml-stubs",
+    "click",
+    "rich",
+    "jinja2",
+    "mashumaro",
+]
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+jsonnet = [
+    "jsonnet",
+    "types-jsonnet",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "mypy",
+    "black",
+    "isort",
+    "flake8",
+    "jupyter",
+]
+
+[project.scripts]
+eznet="eznet.cli:cli"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+line_length = 120
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+#[[tool.mypy.overrides]]
+#module = "_jsonnet"
+#disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
