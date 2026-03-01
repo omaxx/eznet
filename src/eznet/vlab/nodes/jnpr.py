@@ -185,7 +185,7 @@ class vQFX(Node):
     fpc_image: str
     re_memory_mb: int = 1024
     re_vcpus: int = 1
-    fpc_memory_mb: int = 2048
+    fpc_memory_mb: int = 1024
     fpc_vcpus: int = 1
     double_re: bool = False
     config: Config | None = None
