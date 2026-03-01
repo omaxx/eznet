@@ -27,7 +27,7 @@ handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
 logger.addHandler(handler)
 
 
-topology = Topology.from_yaml(Path("./topologies/sp/vlab.yaml").read_text())
+topology = Topology.load("./topologies/sp/vlab.jsonnet")
 
 
 class App:

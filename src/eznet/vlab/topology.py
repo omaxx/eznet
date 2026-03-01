@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Literal, TYPE_CHECKING, Annotated
+from typing import Literal, TYPE_CHECKING, Annotated, Self
 from dataclasses import dataclass, field
 
-from mashumaro.mixins.yaml import DataClassYAMLMixin
 from mashumaro.types import Discriminator, SerializationStrategy
+
+from eznet.utils import DataClassLoadMixin
 
 from .vm import VM
 from .vnet import VNet
@@ -64,10 +65,11 @@ class Node:
         pass
 
 
+# Need for Node subclasses resolution:
 from .nodes import *
 
 @dataclass
-class Topology(DataClassYAMLMixin):
+class Topology(DataClassLoadMixin):
     networks: list[Network] = field(default_factory=list)
     nodes: list[
         Annotated[Node, Discriminator(field="type", include_subtypes=True)]

@@ -34,7 +34,7 @@ nodes:
       - network: vmx1_vmx2
       - network: srv2
     config:
-      hostname: vmx1
+      hostname: vmx2
       interfaces:
         "fxp0": {ip: "192.168.0.2/24"}
         "ge-0/0/0": {ip: "10.0.12.2/24"}
