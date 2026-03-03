@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+# /etc/libvirt/hooks/network
+
+import sys
+import pathlib
+import libvirt
+import xml.etree.ElementTree as ET
+
+GROUP_FWD_MASK = "0x4000"
+URI = "qemu:///system"
+
+
+def get_bridge_name(network_name: str) -> str | None:
+    conn = libvirt.open(URI)
+
+    if conn is None:
+        return None
+
+    try:
+        net = conn.networkLookupByName(network_name)
+        xml_desc = net.XMLDesc()
+    finally:
+        conn.close()
+
+    root = ET.fromstring(xml_desc)
+    bridge = root.find("bridge")
+
+    if bridge is not None:
+        return bridge.get("name")
+
+    return None
+
+
+def set_group_fwd_mask(bridge_name: str):
+    path = pathlib.Path(f"/sys/class/net/{bridge_name}/bridge/group_fwd_mask")
+
+    if not path.exists():
+        print(f"[hook] bridge sysfs not found: {bridge_name}", file=sys.stderr)
+        return
+
+    try:
+        path.write_text(GROUP_FWD_MASK)
+        print(f"[hook] group_fwd_mask set to {GROUP_FWD_MASK} on {bridge_name}")
+    except Exception as e:
+        print(f"[hook] failed to set mask on {bridge_name}: {e}", file=sys.stderr)
+
+
+def main():
+    if len(sys.argv) < 3:
+        return
+
+    network_name = sys.argv[1]
+    event = sys.argv[2]
+
+    if event == "started":
+        bridge_name = get_bridge_name(network_name)
+        if bridge_name:
+            set_group_fwd_mask(bridge_name)
+        else:
+            print(f"[hook] could not determine bridge for {network_name}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
