@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from eznet.jnpr.vars import Vars
 
-from eznet.vlab.topology import Node
+from eznet.vlab.topology import Node, Link, Bridge
 from eznet.vlab.vm import VM, Disk, Interface
 from eznet.vlab.vnet import VNet
 
@@ -26,6 +26,7 @@ class vMX(Node):
     fpc_vcpus: int = 3
     double_re: bool = False
     vars: Vars | None = None
+    mgmt: Link = field(default_factory=lambda: Bridge("mgmt"))
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)
@@ -52,8 +53,8 @@ class vMX(Node):
                 ],
                 interfaces=[
                     Interface(
-                        type="network",
-                        source="mgmt",
+                        type=self.mgmt.type,
+                        source=self.mgmt.name,
                         target=f"{self.name}~re{slot}~mgmt",
                         mac=(
                             f"{MAC}:{self.id}:{10 + slot}:00"
@@ -97,8 +98,8 @@ class vMX(Node):
                 ],
                 interfaces=[
                     Interface(
-                        type="network",
-                        source="mgmt",
+                        type=self.mgmt.type,
+                        source=self.mgmt.name,
                         target=f"{self.name}~fpc{slot}~mgmt",
                         mac=(
                             f"{MAC}:{self.id}:{slot}:0a"
@@ -188,6 +189,7 @@ class vQFX(Node):
     fpc_vcpus: int = 1
     double_re: bool = False
     vars: Vars | None = None
+    mgmt: Link = field(default_factory=lambda: Bridge("mgmt"))
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)
@@ -205,8 +207,8 @@ class vQFX(Node):
                 ],
                 interfaces=[
                     Interface(
-                        type="network",
-                        source="mgmt",
+                        type=self.mgmt.type,
+                        source=self.mgmt.name,
                         target=f"{self.name}~re{slot}~mgmt",
                         mac=(
                             f"{MAC}:{self.id}:{10 + slot}:00"
@@ -265,8 +267,8 @@ class vQFX(Node):
                 ],
                 interfaces=[
                     Interface(
-                        type="network",
-                        source="mgmt",
+                        type=self.mgmt.type,
+                        source=self.mgmt.name,
                         target=f"{self.name}~fpc{slot}~mgmt",
                         mac=(
                             f"{MAC}:{self.id}:{slot}:0a"

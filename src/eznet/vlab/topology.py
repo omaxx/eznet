@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, TYPE_CHECKING, Annotated, Self
+from typing import Literal, TYPE_CHECKING, Annotated, Any
 from dataclasses import dataclass, field
 
 from mashumaro.types import Discriminator, SerializationStrategy
@@ -19,6 +19,7 @@ class Bridge:
     name: str
     type: Literal["bridge"] = "bridge"
 
+
 @dataclass
 class Network:
     name: str
@@ -29,6 +30,10 @@ class Network:
             name=self.name,
             bridge=self.name,
         )
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, Network) and self.name == other.name
+
 
 class LinkStrategy(SerializationStrategy):
     def serialize(self, value: Bridge | Network) -> dict[str, str]:
@@ -74,3 +79,9 @@ class Topology(DataClassLoadMixin):
     nodes: list[
         Annotated[Node, Discriminator(field="type", include_subtypes=True)]
     ] = field(default_factory=list)
+
+    def __post_init__(self):
+        for node in self.nodes:
+            for interface in node.interfaces:
+                if isinstance(interface, Network) and interface not in self.networks:
+                    self.networks.append(interface)

@@ -1,6 +1,6 @@
 {
-    vmx1: import 'vars/vmx1.jsonnet',
-    vmx2: import 'vars/vmx2.jsonnet',
-    srv1: import 'vars/srv1.jsonnet',
-    srv2: import 'vars/srv2.jsonnet',
+    r1: import 'vars/r1.jsonnet',
+    r2: import 'vars/r2.jsonnet',
+    h1: import 'vars/h1.jsonnet',
+    h2: import 'vars/h2.jsonnet',
 }

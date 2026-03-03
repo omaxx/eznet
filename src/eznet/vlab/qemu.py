@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ParamSpec, TypeVar, Callable, Coroutine, Any
-import asyncio
-import functools
+from typing import ParamSpec, TypeVar
 import logging
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import libvirt
 
-from eznet.drivers.ssh import SSH
 
 NS_URI = "https://omaxx.net/vlab"
 NS_NAME = "vlab"
@@ -26,15 +23,6 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-# def sync_to_async(
-#     method: Callable[P, T]
-# ) -> Callable[P, Coroutine[Any, Any, T]]:
-#     @functools.wraps(method)
-#     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-#         return await asyncio.to_thread(method, *args, **kwargs)
-#     return wrapper
-#
-#
 @dataclass
 class VM:
     @dataclass

@@ -1,64 +1,45 @@
 local linux = {
+    type: "linux",
     image: "debian-13-genericcloud-amd64.qcow2",
 };
 
 local vmx = {
+    type: "jnpr/vmx",
     version: "24.4R1-S2.9",
     re_image: "junos-vmx-x86-64-24.4R1-S2.9.qcow2",
     fpc_image: "vFPC-20241118.img",
 };
 
 local vars = import 'vars.jsonnet';
+local interfaces = import 'interfaces.jsonnet';
 
 {
-    networks: [
-        { name: "srv1" },
-        { name: "srv2" },
-        { name: "vmx1_vmx2" },
-    ],
-
     nodes: [
         vmx {
-            type: "jnpr/vmx",
             id: 1,
-            name: "vmx1",
-            interfaces: [
-                { network: "vmx1_vmx2" },
-                { network: "srv1" },
-            ],
+            name: "r1",
+            interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
 
         vmx {
-            type: "jnpr/vmx",
             id: 2,
-            name: "vmx2",
-            interfaces: [
-                { network: "vmx1_vmx2" },
-                { network: "srv2" },
-            ],
+            name: "r2",
+            interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
 
         linux {
-            type: "linux",
-            id: 3,
-            name: "srv1",
-            interfaces: [
-                { network: "mgmt" },
-                { network: "srv1" },
-            ],
+            id: 10,
+            name: "h1",
+            interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
 
         linux {
-            type: "linux",
-            id: 4,
-            name: "srv2",
-            interfaces: [
-                { network: "mgmt" },
-                { network: "srv2" },
-            ],
+            id: 20,
+            name: "h2",
+            interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
     ],
