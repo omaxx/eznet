@@ -24,7 +24,7 @@ local vmx = {
         { network: "vmx1_vmx2" },
         { network: "srv1" },
       ],
-      config: {
+      vars: {
         hostname: "vmx1",
         interfaces: {
           "fxp0":     { ip: "192.168.0.1/24" },
@@ -42,7 +42,7 @@ local vmx = {
         { network: "vmx1_vmx2" },
         { network: "srv2" },
       ],
-      config: {
+      vars: {
         hostname: "vmx2",
         interfaces: {
           "fxp0":     { ip: "192.168.0.2/24" },
@@ -60,7 +60,7 @@ local vmx = {
         { network: "mgmt" },
         { network: "srv1" },
       ],
-      config: {
+      vars: {
         hostname: "srv1",
         interfaces: {
           "enp1s0": { ip: "192.168.0.11/24" },
@@ -77,7 +77,7 @@ local vmx = {
         { network: "mgmt" },
         { network: "srv2" },
       ],
-      config: {
+      vars: {
         hostname: "srv2",
         interfaces: {
           "enp1s0": { ip: "192.168.0.12/24" },

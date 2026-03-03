@@ -20,7 +20,7 @@ SYSLOG = {
 
 
 @dataclass
-class Config:
+class Vars:
     @dataclass
     class Interface:
         ip: str
@@ -80,7 +80,7 @@ class Config:
             "chassis": self._chassis(),
         }
 
-    def __str__(self):
+    def config(self):
         return "\n".join(to_lines(self._value()))
 
 

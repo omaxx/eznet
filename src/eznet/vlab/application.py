@@ -16,18 +16,18 @@ logger =  logging.getLogger("eznet")
 logger.setLevel(logging.INFO)
 handler = RichHandler(
     level=logging.INFO,
-    rich_tracebacks=True,       # Pretty tracebacks
-    tracebacks_show_locals=True, # Show local vars in tracebacks
-    show_time=True,             # Show timestamp
-    show_path=True,             # Show file path
-    markup=True,                # Enable Rich markup in messages
+    rich_tracebacks=True,
+    tracebacks_show_locals=True,
+    show_time=True,
+    show_path=True,
+    markup=True,
 )
 
 handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
 logger.addHandler(handler)
 
 
-topology = Topology.load("./topologies/dc/vlab.jsonnet")
+topology = Topology.load("./topologies/sp/vlab.jsonnet")
 
 
 class App:

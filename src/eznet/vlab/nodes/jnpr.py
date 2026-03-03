@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING,  Literal
-from dataclasses import dataclass, field
-from pathlib import Path
+from typing import TYPE_CHECKING
+from dataclasses import dataclass
 
-from eznet.jnpr.config import Config
+from eznet.jnpr.vars import Vars
 
-from eznet.vlab.topology import Node, Link
+from eznet.vlab.topology import Node
 from eznet.vlab.vm import VM, Disk, Interface
 from eznet.vlab.vnet import VNet
 
@@ -26,7 +25,7 @@ class vMX(Node):
     fpc_memory_mb: int = 2048
     fpc_vcpus: int = 3
     double_re: bool = False
-    config: Config | None = None
+    vars: Vars | None = None
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)
@@ -151,7 +150,7 @@ class vMX(Node):
         ]
 
     async def init(self, vlab: VLab):
-        if self.config is None:
+        if self.vars is None:
             return
 
         path = vlab.node_path(node_name=self.name)
@@ -168,7 +167,7 @@ class vMX(Node):
                 try:
                     await vlab.host.run(f"tar zxvf {mount_dir}/vmm-config.tgz -C {staging_dir}")
                     await vlab.host.run(f"mkdir -p {staging_dir}/config")
-                    await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", str(self.config))
+                    await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", self.vars.config())
                     await vlab.host.run(f"tar zcvf {mount_dir}/vmm-config.tgz -C {staging_dir} .")
                 finally:
                     await vlab.host.run(f"guestunmount {mount_dir}")
@@ -188,7 +187,7 @@ class vQFX(Node):
     fpc_memory_mb: int = 1024
     fpc_vcpus: int = 1
     double_re: bool = False
-    config: Config | None = None
+    vars: Vars | None = None
 
     def vms(self, vlab: VLab) -> list[VM]:
         path = vlab.node_path(node_name=self.name)

@@ -40,7 +40,7 @@ class NetworkConfig(DataClassDictMixin):
 
 
 @dataclass
-class Config:
+class Vars:
     @dataclass
     class Interface:
         ip: str

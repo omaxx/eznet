@@ -17,7 +17,7 @@ local vqfx = {
       interfaces: [
         { network: "qfx1_qfx2" },
       ],
-      config: {
+      vars: {
         hostname: "qfx1",
         interfaces: {
           "fxp0":     { ip: "192.168.0.1/24" },
@@ -33,7 +33,7 @@ local vqfx = {
       interfaces: [
         { network: "qfx1_qfx2" },
       ],
-      config: {
+      vars: {
         hostname: "qfx2",
         interfaces: {
           "fxp0":     { ip: "192.168.0.2/24" },
