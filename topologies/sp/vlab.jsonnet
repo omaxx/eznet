@@ -17,28 +17,74 @@ local interfaces = import 'interfaces.jsonnet';
     nodes: [
         vmx {
             id: 1,
-            name: "r1",
+            name: "p11",
             interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
-
         vmx {
             id: 2,
-            name: "r2",
+            name: "p12",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 3,
+            name: "p21",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 4,
+            name: "p22",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 5,
+            name: "pe11",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 6,
+            name: "pe12",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 7,
+            name: "pe21",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        vmx {
+            id: 8,
+            name: "pe22",
             interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
 
         linux {
-            id: 10,
-            name: "h1",
+            id: 11,
+            name: "h11",
             interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
-
         linux {
-            id: 20,
-            name: "h2",
+            id: 12,
+            name: "h12",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        linux {
+            id: 21,
+            name: "h21",
+            interfaces: interfaces[self.name],
+            vars: vars[self.name],
+        },
+        linux {
+            id: 22,
+            name: "h22",
             interfaces: interfaces[self.name],
             vars: vars[self.name],
         },
