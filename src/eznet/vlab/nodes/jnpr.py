@@ -300,27 +300,3 @@ class vQFX(Node):
 
     async def init(self, vlab: VLab):
         return
-        if self.config is None:
-            return
-
-        path = vlab.node_path(node_name=self.name)
-        for slot in [0, ]:
-            hdd_image = (
-                path / f"re{slot}" / f"metadata-usb-re{slot}.img"
-                if self.double_re else
-                path / f"re{slot}" / "metadata-usb-re.img"
-            )
-            staging_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
-            mount_dir = (await vlab.host.run("mktemp -d")).stdout.strip()
-            try:
-                await vlab.host.run(f"guestmount -a {hdd_image} -m /dev/sda {mount_dir}")
-                try:
-                    await vlab.host.run(f"tar zxvf {mount_dir}/vmm-config.tgz -C {staging_dir}")
-                    await vlab.host.run(f"mkdir -p {staging_dir}/config")
-                    await vlab.host.write_file(f"{staging_dir}/config/juniper.conf", str(self.config))
-                    await vlab.host.run(f"tar zcvf {mount_dir}/vmm-config.tgz -C {staging_dir} .")
-                finally:
-                    await vlab.host.run(f"guestunmount {mount_dir}")
-            finally:
-                await vlab.host.run(f"rm -rf {staging_dir}")
-                await vlab.host.run(f"rm -rf {mount_dir}")
