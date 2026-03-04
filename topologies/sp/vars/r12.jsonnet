@@ -1,5 +1,5 @@
 {
-    hostname: "pe-12",
+    hostname: "r-12",
     interfaces: {
         "fxp0": { ip: "192.168.0.6/24" },
         "ge-0/0/0": { ip: "10.0.12.1/24" },

@@ -4,10 +4,10 @@
     p21: import 'vars/p21.jsonnet',
     p22: import 'vars/p22.jsonnet',
 
-    pe11: import 'vars/pe11.jsonnet',
-    pe12: import 'vars/pe12.jsonnet',
-    pe21: import 'vars/pe21.jsonnet',
-    pe22: import 'vars/pe22.jsonnet',
+    r11: import 'vars/r11.jsonnet',
+    r12: import 'vars/r12.jsonnet',
+    r21: import 'vars/r21.jsonnet',
+    r22: import 'vars/r22.jsonnet',
 
     h11: import 'vars/h11.jsonnet',
     h12: import 'vars/h12.jsonnet',
