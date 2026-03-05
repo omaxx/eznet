@@ -1,34 +1,15 @@
 #!/usr/bin/env python3
+###
+# https://libvirt.org/hooks.html
 # /etc/libvirt/hooks/network
+# sudo systemctl restart libvirtd
+###
 
 import sys
 import pathlib
-import libvirt
 import xml.etree.ElementTree as ET
 
 GROUP_FWD_MASK = "0x4000"
-URI = "qemu:///system"
-
-
-def get_bridge_name(network_name: str) -> str | None:
-    conn = libvirt.open(URI)
-
-    if conn is None:
-        return None
-
-    try:
-        net = conn.networkLookupByName(network_name)
-        xml_desc = net.XMLDesc()
-    finally:
-        conn.close()
-
-    root = ET.fromstring(xml_desc)
-    bridge = root.find("bridge")
-
-    if bridge is not None:
-        return bridge.get("name")
-
-    return None
 
 
 def set_group_fwd_mask(bridge_name: str):
@@ -51,13 +32,19 @@ def main():
 
     network_name = sys.argv[1]
     event = sys.argv[2]
+    xml_data = sys.stdin.read()
 
-    if event == "started":
-        bridge_name = get_bridge_name(network_name)
-        if bridge_name:
-            set_group_fwd_mask(bridge_name)
-        else:
-            print(f"[hook] could not determine bridge for {network_name}", file=sys.stderr)
+    if event == "started" and xml_data:
+        root = ET.fromstring(xml_data)
+        bridge = root.find("network/bridge")
+
+        if bridge is not None:
+            bridge_name = bridge.get("name")
+            if bridge_name:
+                set_group_fwd_mask(bridge_name)
+                return
+
+        print(f"[hook] could not determine bridge for {network_name}", file=sys.stderr)
 
 
 if __name__ == "__main__":
