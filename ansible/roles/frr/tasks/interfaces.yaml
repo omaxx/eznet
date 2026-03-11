@@ -1,0 +1,12 @@
+- name: Deploy FRR interface configuration
+  ansible.builtin.template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces.d/frr
+    mode: "0644"
+  register: interfaces_changed
+
+- name: Restart networking
+  ansible.builtin.systemd:
+    name: networking
+    state: restarted
+  when: interfaces_changed.changed

@@ -1,0 +1,7 @@
+- ansible.builtin.import_tasks: system.yaml
+
+- ansible.builtin.import_tasks: docker.yaml
+
+- ansible.builtin.import_tasks: interfaces.yaml
+
+- ansible.builtin.import_tasks: frr.yaml

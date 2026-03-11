@@ -1,0 +1,7 @@
+---
+- name: Deploy FRR routers
+  hosts: frr
+  become: true
+
+  roles:
+    - frr

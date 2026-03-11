@@ -1,0 +1,4 @@
+zebra=yes
+{% for daemon in daemons | d([]) %}
+{{ daemon }}=yes
+{% endfor %}

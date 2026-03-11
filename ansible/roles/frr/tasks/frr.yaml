@@ -1,0 +1,43 @@
+---
+- name: Pull FRR Docker image
+  community.docker.docker_image:
+    name: "quay.io/frrouting/frr:{{ frr_version }}"
+    source: pull
+
+- name: Create FRR config directory
+  ansible.builtin.file:
+    path: /etc/frr
+    state: directory
+    mode: "0755"
+
+- name: Deploy vtysh.conf
+  ansible.builtin.template:
+    src: frr/vtysh.conf.j2
+    dest: /etc/frr/vtysh.conf
+    mode: "0644"
+  notify: restart frr
+
+- name: Deploy daemons
+  ansible.builtin.template:
+    src: frr/daemons.j2
+    dest: /etc/frr/daemons
+    mode: "0644"
+  notify: restart frr
+
+- name: Copy frr.conf
+  ansible.builtin.copy:
+    src: "inventory/frr/{{ inventory_hostname }}/frr.conf"
+    dest: /etc/frr/frr.conf
+    mode: "0644"
+  notify: restart frr
+
+- name: Start FRR container
+  community.docker.docker_container:
+    name: frr
+    image: "quay.io/frrouting/frr:{{ frr_version }}"
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    privileged: true
+    volumes:
+      - /etc/frr:/etc/frr

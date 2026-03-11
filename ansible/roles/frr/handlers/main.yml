@@ -1,0 +1,11 @@
+---
+- name: restart frr
+  community.docker.docker_container:
+    name: frr
+    restart: true
+    state: started
+
+- name: restart networking
+  ansible.builtin.systemd:
+    name: networking
+    state: restarted

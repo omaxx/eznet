@@ -1,0 +1,11 @@
+# Managed by Ansible
+auto lo:0
+iface lo:0 inet manual
+
+{% for name, data in interfaces.items() %}
+auto {{ name }}
+iface {{ name }} inet manual
+    {% if data.mtu is defined %}
+    mtu {{ data.mtu }}
+    {% endif %}
+{% endfor %}

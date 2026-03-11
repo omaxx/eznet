@@ -1,0 +1,19 @@
+---
+all:
+  hosts:
+    deb-1:
+      ansible_host: 172.31.0.20
+      daemons: [ bgpd ospfd ] 
+      interfaces:
+        eth1: {}
+        eth2: {}
+    deb-2:
+      ansible_host: 172.31.0.21
+      daemons: [ bgpd ospfd ]
+      interfaces:
+        eth1: {}
+        eth2: {}
+frr:
+  hosts:
+    deb-1:
+    deb-2:
