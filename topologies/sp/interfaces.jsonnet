@@ -58,17 +58,21 @@
     h11: [
         { bridge: "mgmt" },
         { network: "h11" },
+        { network: "h10" },
     ],
     h12: [
         { bridge: "mgmt" },
         { network: "h12" },
+        { network: "h10" },
     ],
     h21: [
         { bridge: "mgmt" },
         { network: "h21" },
+        { network: "h20" },
     ],
     h22: [
         { bridge: "mgmt" },
         { network: "h22" },
+        { network: "h20" },
     ],
 }

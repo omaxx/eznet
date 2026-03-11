@@ -1,6 +1,7 @@
 local linux = {
     type: "linux",
     image: "debian-13-genericcloud-amd64.qcow2",
+    memory_mb: 1536,
 };
 
 local vmx = {
