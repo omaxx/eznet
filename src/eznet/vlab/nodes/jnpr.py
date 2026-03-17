@@ -74,7 +74,7 @@ class vMX(Node):
                     ),
                 ],
             )
-            for slot in [0, ]
+            for slot in ([0, 1] if self.double_re else [0, ])
         ] + [
             VM(
                 name=f"{self.name}~fpc{slot}",
@@ -187,7 +187,6 @@ class vQFX(Node):
     re_vcpus: int = 1
     fpc_memory_mb: int = 1024
     fpc_vcpus: int = 1
-    double_re: bool = False
     vars: Vars | None = None
     mgmt: Link = field(default_factory=lambda: Bridge("mgmt"))
 

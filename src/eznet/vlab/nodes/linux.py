@@ -54,8 +54,8 @@ class Linux(Node):
     async def init(self, vlab: VLab) -> None:
         path = vlab.node_path(node_name=self.name)
         await vlab.host.write_file(path / "meta-data",str(""))
-        await vlab.host.write_file(path / "user-data", str(self.vars.user_data() or ""))
-        await vlab.host.write_file(path / "network-config", str(self.vars.network_config() or ""))
+        await vlab.host.write_file(path / "user-data", str(self.vars.user_data() if self.vars is not None else ""))
+        await vlab.host.write_file(path / "network-config", str(self.vars.network_config() if self.vars is not None else ""))
 
         files = ("meta-data", "user-data", "network-config")
         await vlab.host.run(" ".join([

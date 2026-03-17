@@ -102,8 +102,8 @@ class Qemu:
     def open(self, socket: Path | str = LIBVIRT_SOCK):
         if self._virt is not None:
             raise Exception()
-        # self._virt = libvirt.open(TCP_URI.format(port=port))
         try:
+            # self._virt = libvirt.open(TCP_URI.format(port=port))
             self._virt = libvirt.open(SOCK_URI.format(socket=socket))
         except libvirt.libvirtError as exc:
             logger.error(f"Open libvirt: error: {exc}")
