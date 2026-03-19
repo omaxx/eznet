@@ -27,8 +27,8 @@ def _check_output_for_errors(
         pass
 
 
-@device_method
-async def run_cli_cmd(
+@device_method(prefix="run")
+async def cli_cmd(
     device: Device,
     cmd: str,
     timeout: int = DEFAULT_CMD_TIMEOUT,
@@ -38,8 +38,8 @@ async def run_cli_cmd(
     return result.stdout
 
 
-@device_method
-async def run_shell_cmd(
+@device_method(prefix="run")
+async def shell_cmd(
     device: Device,
     cmd: str,
     timeout: int = DEFAULT_CMD_TIMEOUT,
@@ -75,8 +75,8 @@ async def run_shell_cmd(
     return output
 
 
-@device_method
-async def run_pfe_cmd(
+@device_method(prefix="run")
+async def pfe_cmd(
     device: Device,
     cmd: str,
     fpc: int = 0,
@@ -97,8 +97,8 @@ async def run_pfe_cmd(
     return output
 
 
-@device_method
-async def run_re_cmd(
+@device_method(prefix="run")
+async def re_cmd(
     device: Device,
     cmd: str,
     re: Literal["re0", "re1", "local", "other", "master", "backup", "both"],
