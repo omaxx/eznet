@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from functools import wraps
-from typing import Callable, TypeVar, ParamSpec, Concatenate, Awaitable, Self
+from typing import Callable, TypeVar, ParamSpec, Concatenate, Awaitable, Self, Hashable
+from abc import ABCMeta
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
-class Target:
+
+class Target(Hashable, metaclass=ABCMeta):
     async def __call__(self, func: Callable[[Self], Awaitable[R]]) -> R:
         result: R = await func(self)
         return result
