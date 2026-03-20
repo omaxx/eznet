@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from eznet.utils import encrypt_password
 
@@ -29,7 +30,7 @@ class Vars:
     interfaces: dict[str, Interface]
     fpc_slots: list[int] = field(default_factory=lambda: [0])
 
-    def _system(self):
+    def _system(self) -> dict[str, Any]:
         return {
             "host-name": self.hostname,
             "root-authentication": {
@@ -53,7 +54,7 @@ class Vars:
             },
         }
 
-    def _interfaces(self):
+    def _interfaces(self) -> dict[str, Any]:
         return {
             interface_name: {
                 "unit 0": {
@@ -65,7 +66,7 @@ class Vars:
             for interface_name, interface_data in self.interfaces.items()
         }
 
-    def _chassis(self):
+    def _chassis(self) -> dict[str, Any]:
         return {
             f"fpc {fpc}": {
                 "lite-mode": None,
@@ -73,14 +74,14 @@ class Vars:
             for fpc in self.fpc_slots
         }
 
-    def _value(self):
+    def _value(self) -> dict[str, Any]:
         return {
             "system": self._system(),
             "interfaces": self._interfaces(),
             "chassis": self._chassis(),
         }
 
-    def config(self):
+    def config(self) -> str:
         return "\n".join(to_lines(self._value()))
 
 
@@ -93,7 +94,7 @@ def indent(key: str, value: list[str]) -> list[str]:
         "}",
     ]
 
-def to_lines(data: dict) -> list[str]:
+def to_lines(data: dict[str, Any]) -> list[str]:
     return [
         line
         for key, value in data.items()

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Any
+from typing import Callable, TypeVar, ParamSpec, Concatenate, Awaitable, Any
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
 
 from eznet.target import Target, Group, method
 from eznet.drivers import SSH
@@ -48,4 +52,7 @@ class Devices(Group[Device]):
     pass
 
 
-device_method = method(Device, Devices)
+def device_method(
+    prefix: str | None = None,
+) -> Callable[[Callable[Concatenate[Device, P], Awaitable[R]]], Callable[P, Callable[[Device], Awaitable[R]]]]:
+    return method(Device, Devices)(prefix)
