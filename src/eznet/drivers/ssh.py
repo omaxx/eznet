@@ -69,6 +69,25 @@ class CmdExec:
         return self.exit_code == 0
 
 
+class FileTransfer:
+    def __init__(self, file_name: str):
+        self.file_name = file_name
+        self.received_bytes: int = 0
+        self.total_bytes: int = 0
+        self.speed: float = 0
+
+    def __repr__(self) -> str:
+        received_part = (
+            self.received_bytes / self.total_bytes if self.total_bytes > 0 else 1
+        )
+        return (
+            f"{self.file_name}\t"
+            f"{self.received_bytes:,}\tof\t{self.total_bytes:,}\t"
+            f"[ {received_part:.0%} ]\t"
+            f"at {self.speed:,.0f} Bps"
+        )
+
+
 class Semaphore:
     def __init__(self):
         self._connection: dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = defaultdict(
@@ -340,24 +359,187 @@ class SSH:
                 self.executions.remove(execution)
                 return execution
 
-    async def download(self):
-        pass
+    async def download(self, src: str, dst: str | Path) -> list[str]:
+        download_files: list[str] = []
 
-    async def upload(self):
-        pass
+        async with semaphore.download:
+            transfer = FileTransfer(src)
+            t0 = t1 = time()
+            r1 = 0
+
+            def progress_handler(
+                src_file: bytes, dst_file: bytes, received: int, total: int
+            ) -> None:
+                nonlocal t0, t1, r1, transfer
+
+                if dst_file.decode(settings.DEFAULT_ENCODING) not in download_files:
+                    download_files.append(dst_file.decode(settings.DEFAULT_ENCODING))
+
+                if transfer.file_name != src_file.decode(settings.DEFAULT_ENCODING):
+                    self.executions.remove(transfer)
+                    transfer = FileTransfer(src_file.decode(settings.DEFAULT_ENCODING))
+                    self.executions.append(transfer)
+
+                transfer.received_bytes = received
+                transfer.total_bytes = total
+
+                t_delta = time() - t1
+                if received == total:
+                    t_delta = time() - t0
+                    received_part = received / total if total > 0 else 1
+                    speed = received / t_delta if t_delta > 0 else 0
+                    self.logger.info(
+                        f"{self}: download `{src_file.decode('ascii')}`: {received:,} of {total:,}:"
+                        f" {received_part:.0%} at {speed:,.0f} Bps"
+                    )
+                    t0 = t1 = time()
+                    r1 = 0
+                    transfer.speed = speed
+                elif t_delta > settings.LONG_REQUEST_LOG_TIMEOUT:
+                    received_part = received / total if total > 0 else 1
+                    speed = (received - r1) / t_delta if t_delta > 0 else 0
+                    self.logger.info(
+                        f"{self}: downloading `{src_file.decode('ascii')}`: {received:,} of {total:,}:"
+                        f" {received_part:.0%} at {speed:,.0f} Bps"
+                    )
+                    t1 = time()
+                    r1 = received
+                    transfer.speed = speed
+
+            try:
+                self.executions.append(transfer)
+                done = asyncio.Event()
+
+                async def do_download() -> None:
+                    try:
+                        await asyncssh.scp(
+                            (self.connection, src),
+                            dst,
+                            progress_handler=progress_handler,
+                            preserve=True,
+                            recurse=True,
+                        )
+                    finally:
+                        done.set()
+
+                await asyncio.gather(do_download(), done.wait())
+            except (
+                asyncssh.SFTPError,
+                asyncssh.SFTPFailure,
+            ) as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: download `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
+            else:
+                self.logger.info(f"{self}: download `{src}` --> `{dst}`: DONE")
+            finally:
+                self.executions.remove(transfer)
+
+        return download_files
+
+    async def upload(self, src: str | Path, dst: str) -> list[str]:
+        upload_files: list[str] = []
+
+        async with semaphore.upload:
+            transfer = FileTransfer(str(src))
+            t0 = t1 = time()
+            r1 = 0
+
+            def progress_handler(
+                src_file: bytes, dst_file: bytes, received: int, total: int
+            ) -> None:
+                nonlocal t0, t1, r1, transfer
+
+                if dst_file.decode(settings.DEFAULT_ENCODING) not in upload_files:
+                    upload_files.append(dst_file.decode(settings.DEFAULT_ENCODING))
+
+                if transfer.file_name != src_file.decode(settings.DEFAULT_ENCODING):
+                    self.executions.remove(transfer)
+                    transfer = FileTransfer(src_file.decode(settings.DEFAULT_ENCODING))
+                    self.executions.append(transfer)
+
+                transfer.received_bytes = received
+                transfer.total_bytes = total
+
+                t_delta = time() - t1
+                if received == total:
+                    t_delta = time() - t0
+                    received_part = received / total if total > 0 else 1
+                    speed = received / t_delta if t_delta > 0 else 0
+                    self.logger.info(
+                        f"{self}: upload `{src_file.decode('ascii')}`: {received:,} of {total:,}:"
+                        f" {received_part:.0%} at {speed:,.0f} Bps"
+                    )
+                    t0 = t1 = time()
+                    r1 = 0
+                    transfer.speed = speed
+                elif t_delta > settings.LONG_REQUEST_LOG_TIMEOUT:
+                    received_part = received / total if total > 0 else 1
+                    speed = (received - r1) / t_delta if t_delta > 0 else 0
+                    self.logger.info(
+                        f"{self}: uploading `{src_file.decode('ascii')}`: {received:,} of {total:,}:"
+                        f" {received_part:.0%} at {speed:,.0f} Bps"
+                    )
+                    t1 = time()
+                    r1 = received
+                    transfer.speed = speed
+
+            try:
+                self.executions.append(transfer)
+                done = asyncio.Event()
+
+                async def do_upload() -> None:
+                    try:
+                        await asyncssh.scp(
+                            src,
+                            (self.connection, dst),
+                            progress_handler=progress_handler,
+                            preserve=True,
+                            recurse=True,
+                        )
+                    finally:
+                        done.set()
+
+                await asyncio.gather(do_upload(), done.wait())
+            except (
+                asyncssh.SFTPError,
+                asyncssh.SFTPFailure,
+            ) as err:
+                self.logger.error(
+                    f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
+            except asyncio.CancelledError as err:
+                self.logger.error(
+                    f"{self}: upload `{src}` --> `{dst}`: {err.__class__.__name__}: {err}"
+                )
+                raise
+            else:
+                self.logger.info(f"{self}: upload `{src}` --> `{dst}`: DONE")
+            finally:
+                self.executions.remove(transfer)
+
+        return upload_files
 
 def create_client_factory(ssh: SSH) -> type[asyncssh.SSHClient]:
     class SSHClient(asyncssh.SSHClient):
         def connection_lost(self, err: Exception | None) -> None:
+            if ssh.connection is None:
+                return
             ssh.connection = None
+            ssh.state = State.DISCONNECTED
+            semaphore.connection.release()
             if err is None:
-                ssh.state = State.DISCONNECTED
                 ssh.logger.info(f"{ssh}: {ssh.state}")
             else:
                 ssh.error = f"{err.__class__.__name__}"
-                ssh.state = State.DISCONNECTED
                 ssh.logger.error(f"{ssh}: {ssh.state}: {ssh.error}: {err}")
-            semaphore.connection.release()
     return SSHClient
 
 def create_session_factory(

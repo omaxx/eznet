@@ -65,3 +65,6 @@ strict = true
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 asyncio_mode = "auto"
+markers = [
+    "testbed: tests that require real testbed devices (use --testbed to run)",
+]
